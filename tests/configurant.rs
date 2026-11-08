@@ -13,6 +13,7 @@ files = "./public"
 bind = "0.0.0.0:443"
 http_bind = "0.0.0.0:80"
 dotfiles = true
+max_body_bytes = 10485760
 
 [acme]
 contact = "you@example.org"
@@ -28,6 +29,9 @@ key = "k.pem"
 [[proxy]]
 prefix = "/api"
 upstream = "http://127.0.0.1:3000"
+connect_timeout_secs = 2
+response_timeout_secs = 30
+idle_timeout_secs = 45
 "#;
 
 fn settings_from(file: &str) -> Settings {
@@ -61,10 +65,14 @@ fn configurant_fills_settings_the_same_as_reading_the_file_directly() {
         via_configurant.proxy,
         vec![ProxyRoute {
             prefix: "/api".into(),
-            upstream: "http://127.0.0.1:3000".into()
+            upstream: "http://127.0.0.1:3000".into(),
+            connect_timeout_secs: Some(2),
+            response_timeout_secs: Some(30),
+            idle_timeout_secs: Some(45),
         }]
     );
     assert!(via_configurant.dotfiles);
+    assert_eq!(via_configurant.max_body_bytes, Some(10_485_760));
 }
 
 #[tokio::test]

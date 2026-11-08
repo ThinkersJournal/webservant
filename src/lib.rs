@@ -37,6 +37,7 @@ pub use acme::{
 };
 pub use error::{Error, Result};
 pub use httpant::server::{RefusalReason, ServedCert, TlsEvent};
+pub use proxy::ProxyOptions;
 pub use settings::{AcmeSettings, ProxyRoute, Settings, TlsFiles};
 
 /// The address used when you do not choose one: this machine only.
@@ -140,7 +141,8 @@ pub struct Site {
     http_bind: Option<String>,
     tls: Option<(PathBuf, PathBuf)>,
     acme: Option<Acme>,
-    proxies: Vec<(String, String)>,
+    proxies: Vec<(String, String, ProxyOptions)>,
+    max_body_bytes: Option<u64>,
     tls_events: Option<TlsSink>,
     adapter: Option<String>,
     dotfiles: bool,
@@ -157,6 +159,7 @@ impl Site {
             tls: None,
             acme: None,
             proxies: Vec::new(),
+            max_body_bytes: None,
             tls_events: None,
             adapter: None,
             dotfiles: false,
@@ -199,7 +202,26 @@ impl Site {
     /// `-Proto`, `-Host`) are written by this server and the client's own are dropped; WebSocket upgrades are refused with `501` in this
     /// release; an upstream that is down is a `502` (`504` on a timeout) that does not say where it is.
     pub fn proxy(mut self, prefix: impl Into<String>, upstream: impl Into<String>) -> Self {
-        self.proxies.push((prefix.into(), upstream.into()));
+        self.proxies
+            .push((prefix.into(), upstream.into(), ProxyOptions::default()));
+        self
+    }
+
+    /// Like [`Site::proxy`], with this route's own timeouts ([`ProxyOptions`]).
+    pub fn proxy_with(
+        mut self,
+        prefix: impl Into<String>,
+        upstream: impl Into<String>,
+        options: ProxyOptions,
+    ) -> Self {
+        self.proxies.push((prefix.into(), upstream.into(), options));
+        self
+    }
+
+    /// The largest request body accepted, in bytes (HTTPAnt's default is 2 MiB). A larger one is refused with `413` before any handler or
+    /// upstream sees it. It applies to the whole site: a proxied upload endpoint needs this raised, and so does every other route.
+    pub fn max_body_bytes(mut self, bytes: u64) -> Self {
+        self.max_body_bytes = Some(bytes);
         self
     }
 
@@ -229,9 +251,13 @@ impl Site {
     }
 
     fn server(&self) -> Result<Server> {
-        Ok(match &self.adapter {
+        let server = match &self.adapter {
             Some(id) => Server::with_adapter(id)?,
             None => Server::new(),
+        };
+        Ok(match self.max_body_bytes {
+            Some(n) => server.limits(httpant::server::Limits::default().max_body_bytes(n)),
+            None => server,
         })
     }
 
@@ -247,8 +273,8 @@ impl Site {
         let plain_server = self.server()?;
         let mut server = self.server()?;
         // Proxy routes first: the router takes the first route that matches, and the file catch-all matches everything.
-        for (prefix, upstream) in &self.proxies {
-            let proxy = proxy::Proxy::new(prefix, upstream)?;
+        for (prefix, upstream, options) in &self.proxies {
+            let proxy = proxy::Proxy::new(prefix, upstream, *options)?;
             let handler = {
                 let proxy = proxy.clone();
                 move |req: Request| {
