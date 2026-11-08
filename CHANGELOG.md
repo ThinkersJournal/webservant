@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.3] - 2026-11-08
+
+- Docs only: `ROADMAP.md` rows 0, 5 and 9 brought to current state (row 0 still read "next" with D1/D2/D5/D8 open and row 9 "done in this PR", which led to a stale task), CireSnave's board 402 ruling recorded ("402: A": publish the first version on our patent sweep), and `HANDOFF.md` rewritten. No code change. Allocated by the PM.
+
 ## [0.4.2] - 2026-11-08
 
 - `docs/QUICKSTART.md` (the five-minute hello world and the staging check as a numbered list, with what success and each failure look like). `--acme-directory URL` and `--acme-ca-root PEMFILE` on the command line (a private or test CA). A test runs `webservant check` as a real process against Pebble and asserts the two sentences the quickstart shows, and another parses every `webservant ...` command in the README and quickstart with the real argument parser. From the fresh-eyes trial (`docs/FRESH-EYES-TRIAL.md`): `--help`/`-h`/`help` and `--version` work, a mistyped option gets one line with a "did you mean", and the package ships only what a user needs (it also had a stale "placeholder" description). A malformed `bind`/`http_bind` (`8081`, `127.0.0.1:99999`) is named at start instead of being reported as "address in use". Three fresh-eyes runs are recorded. Version proposed; the PM allocates it at the gate.

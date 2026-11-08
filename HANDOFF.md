@@ -1,7 +1,7 @@
 # WebServAnt lane HANDOFF
 
 Current state only; history is in git. Written 2026-11-08 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
-at 92ff2df, 0.4.2). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is uncommitted: commit it with the next PR.
+at 92ff2df, 0.4.2). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is in PR #14 (0.4.3, docs only).
 
 ## Why (CireSnave 2026-10-28, ROADMAP.md)
 Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published and depended on as `~0.5.22`.
