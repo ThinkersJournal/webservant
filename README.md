@@ -35,13 +35,17 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   can use up, and staging certificates are not trusted by browsers. A name that cannot get a certificate stops the start with a sentence that says
   which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys:
   `--acme-store DIR` to choose another).
+- **Reverse proxy.** `.proxy("/api", "http://127.0.0.1:3000")` (or `--proxy /api=http://127.0.0.1:3000`, repeatable) sends `/api/...` to your app
+  with the prefix removed, next to the files. The client's `X-Forwarded-*` and `Forwarded` headers are dropped and replaced with what this server
+  established, hop-by-hop headers stop here, bodies stream both ways, and an upstream that is down is a `502` (`504` on a timeout) that does not say
+  where it is. WebSocket upgrades are refused with `501` in this release; only the common methods are forwarded.
 - **The web library is a setting.** Hyper by default; after `cargo add webservant --features axum` (or actix-web, poem, salvo, warp),
   `.adapter("axum")` picks another and nothing else changes. Without the feature, the error says to turn it on.
 - **Errors say what to do next.** Every message ends with the fix.
 
 ## What it does not do yet
 
-The TLS-ALPN-01 challenge (waiting on HTTPAnt: its `ServerCert` rejects the RFC 8737 validation certificate), DNS-01 and wildcards, a reverse proxy, compression, directory listings and anything for visitors to sign in with are not in this release.
+The TLS-ALPN-01 challenge (waiting on HTTPAnt: its `ServerCert` rejects the RFC 8737 validation certificate), DNS-01 and wildcards, compression, directory listings and anything for visitors to sign in with are not in this release.
 The plan and the reasons are in [ROADMAP.md](ROADMAP.md) and [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Status

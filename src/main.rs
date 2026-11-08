@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles]\n\
 automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
+forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
 
@@ -21,6 +22,7 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
     }
     let (mut name, mut files, mut bind, mut cert, mut key, mut dot) =
         ("localhost".to_owned(), None, None, None, None, false);
+    let mut proxies: Vec<(String, String)> = Vec::new();
     let (mut acme, mut staging, mut store, mut http_bind, mut also) =
         (None, false, None, None, Vec::new());
     while let Some(flag) = it.next() {
@@ -35,6 +37,13 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
             "--cert" => cert = Some(value("--cert")?),
             "--key" => key = Some(value("--key")?),
             "--dotfiles" => dot = true,
+            "--proxy" => {
+                let v = value("--proxy")?;
+                let (prefix, upstream) = v.split_once('=').ok_or_else(|| {
+                    format!("`--proxy` takes PREFIX=UPSTREAM, for example `--proxy /api=http://127.0.0.1:3000`.\n{USAGE}")
+                })?;
+                proxies.push((prefix.to_owned(), upstream.to_owned()));
+            }
             "--acme" => acme = Some(value("--acme")?),
             "--staging" => staging = true,
             "--acme-store" => store = Some(value("--acme-store")?),
@@ -48,6 +57,9 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
         }
     }
     let mut site = webservant::Site::new(name).dotfiles(dot);
+    for (prefix, upstream) in proxies {
+        site = site.proxy(prefix, upstream);
+    }
     if let Some(f) = files {
         site = site.files(f);
     }

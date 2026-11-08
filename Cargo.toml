@@ -1,6 +1,6 @@
 [package]
 name = "webservant"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Reserved name: a web server program that works with any Rust web library (built on HTTPAnt). Placeholder, no functionality yet."
 license = "MIT OR Apache-2.0"
@@ -13,7 +13,7 @@ futures-util = "0.3.34"
 http = "1.5.0"
 http-body = "1.1.0"
 http-body-util = "0.1.5"
-httpant = { version = "~0.5.22", features = ["tls"] }
+httpant = { version = "~0.5.22", features = ["tls", "https"] }
 httpdate = "1.0.3"
 instant-acme = { version = "0.8.5", default-features = false, features = ["ring", "hyper-rustls", "rcgen", "x509-parser", "time"] }
 mime_guess = "2.0.5"

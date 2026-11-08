@@ -9,3 +9,5 @@ Not a patent sweep. Dependency licences read from the GitHub and crates.io APIs:
 ## Techniques in the tree, not yet swept (2026-11-08)
 
 Slice 1 (0.1.0, not published) contains: static file serving with conditional requests and byte ranges (RFC 9110), path confinement under a root, and TLS termination through HTTPAnt. All are long-standing and specified in public standards, but **no sweep has been done**; it is ROADMAP row 5 and a precondition of publishing.
+
+Also in the tree since 0.2.0 / 0.2.1, **not swept**: ACME certificate issuance and renewal (RFC 8555, through `instant-acme`), certificate store and renewal scheduling, and reverse-proxy header rewriting (RFC 9110 hop-by-hop handling, `X-Forwarded-*`). Standards-based and long established; no search has been done.
