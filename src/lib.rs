@@ -355,6 +355,61 @@ impl Site {
         })
     }
 
+    /// Answer "will automatic certificates work here?" with **one real issuance**, then clean up. The site is started exactly as configured
+    /// (same listeners, same names, same challenge), a certificate is requested from the certificate authority using a **throwaway store**
+    /// (nothing is kept, your real account and certificates are untouched), and the site is stopped again. If the configured authority is Let's
+    /// Encrypt production it is **replaced by staging**, so this cannot spend production rate limits; any other directory is used as given.
+    ///
+    /// The outcome is in the returned [`Reachability`]: `issued` on success, or `failure`, whose text names the step that failed (for example the
+    /// certificate authority could not reach port 80 on this machine). An `Err` is a problem with the settings or the listeners (an address in
+    /// use), not an answer about reachability. Each call creates a new account at the authority; Let's Encrypt staging limits those per address, so
+    /// do not call it in a loop.
+    pub async fn check_reachable(mut self) -> Result<Reachability> {
+        let Some(acme) = self.acme.as_mut() else {
+            return Err(Error::Settings(
+                "`check_reachable` needs automatic certificates: add `.acme(Acme::new(\"you@example.org\"))` (or `--acme you@example.org`) to the site first."
+                    .into(),
+            ));
+        };
+        if acme.directory == acme::LETS_ENCRYPT_PRODUCTION {
+            acme.directory = acme::LETS_ENCRYPT_STAGING.to_owned();
+        }
+        let scratch = std::env::temp_dir().join(format!(
+            "webservant-check-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos())
+        ));
+        acme.store = Some(scratch.clone());
+        let directory = acme.directory.clone();
+        let mut names = vec![self.name.to_ascii_lowercase()];
+        names.extend(acme.extra_names.iter().map(|n| n.to_ascii_lowercase()));
+
+        let started = self.start().await;
+        let result = match started {
+            Ok(site) => {
+                let issued = site.certificates().and_then(|c| c.status().cert);
+                let stopped = site.shutdown().await;
+                stopped.map(|()| Reachability {
+                    names,
+                    directory,
+                    issued,
+                    failure: None,
+                })
+            }
+            Err(Error::Acme(e)) => Ok(Reachability {
+                names,
+                directory,
+                issued: None,
+                failure: Some(e.0),
+            }),
+            Err(other) => Err(other),
+        };
+        let _ = std::fs::remove_dir_all(&scratch);
+        result
+    }
+
     /// Start serving and run until Ctrl-C, then finish the requests in flight.
     pub async fn serve(self) -> Result<()> {
         let site = self.start().await?;
@@ -451,6 +506,26 @@ fn load_pem(cert: &Path, key: &Path) -> Result<ServerCert> {
         path: None,
         reason: e.to_string(),
     })
+}
+
+/// The answer of [`Site::check_reachable`].
+#[derive(Debug, Clone)]
+pub struct Reachability {
+    /// The names the check asked for.
+    pub names: Vec<String>,
+    /// The ACME directory it asked (staging unless another was configured).
+    pub directory: String,
+    /// The certificate it got, on success. It was thrown away.
+    pub issued: Option<CertInfo>,
+    /// Why it failed, in a sentence that names the step and what to do.
+    pub failure: Option<String>,
+}
+
+impl Reachability {
+    /// Did the certificate authority issue a certificate?
+    pub fn is_reachable(&self) -> bool {
+        self.issued.is_some()
+    }
 }
 
 /// The certificate in service, for a site with automatic certificates.

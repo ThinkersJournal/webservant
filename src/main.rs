@@ -6,17 +6,18 @@ use std::process::ExitCode;
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles]\n\
 automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
 forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
+will automatic HTTPS work here? (one staging issuance, nothing kept): webservant check --name HOST --acme you@example.org --files DIR\n\
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
 
 fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String> {
     let mut it = args.into_iter();
     match it.next().as_deref() {
-        Some("serve") => {}
+        Some("serve" | "check") => {}
         Some("--help" | "-h") | None => return Err(USAGE.to_owned()),
         Some(other) => {
             return Err(format!(
-                "unknown command `{other}`: the only command is `serve`.\n{USAGE}"
+                "unknown command `{other}`: the commands are `serve` and `check`.\n{USAGE}"
             ));
         }
     }
@@ -97,15 +98,47 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
     webservant::Site::from_settings(&settings).map_err(|e| e.to_string())
 }
 
+/// `webservant check`: one real issuance against staging (or the configured test CA), then clean up. Exit 0 if a certificate was issued.
+async fn run_check(site: webservant::Site) -> ExitCode {
+    match site.check_reachable().await {
+        Ok(r) if r.is_reachable() => {
+            println!(
+                "OK: {} issued a certificate for {}. Nothing was kept.",
+                r.directory,
+                r.names.join(", ")
+            );
+            ExitCode::SUCCESS
+        }
+        Ok(r) => {
+            eprintln!(
+                "NOT REACHABLE ({}): {}",
+                r.directory,
+                r.failure
+                    .unwrap_or_else(|| "no certificate was issued".into())
+            );
+            ExitCode::FAILURE
+        }
+        Err(e) => {
+            eprintln!("webservant: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
-    let site = match parse(std::env::args().skip(1).collect()) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let check = args.first().map(String::as_str) == Some("check");
+    let site = match parse(args) {
         Ok(s) => s,
         Err(msg) => {
             eprintln!("{msg}");
             return ExitCode::from(2);
         }
     };
+    if check {
+        return run_check(site).await;
+    }
     let running = match site.start().await {
         Ok(r) => r,
         Err(e) => {

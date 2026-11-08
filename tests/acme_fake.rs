@@ -494,3 +494,98 @@ async fn tls_events_report_refusals_and_a_renewal_taking_effect() {
     assert_eq!(changed, 1, "{:?}", events.lock().unwrap());
     running.shutdown().await.unwrap();
 }
+
+// ---- check_reachable ----
+
+/// The check tests count scratch directories, so they must not overlap each other (tests in one binary run in parallel).
+static GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+fn leftovers() -> usize {
+    let prefix = format!("webservant-check-{}-", std::process::id());
+    std::fs::read_dir(std::env::temp_dir())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_string_lossy().starts_with(&prefix))
+        .count()
+}
+
+#[tokio::test]
+async fn check_reachable_issues_once_against_staging_and_keeps_nothing() {
+    let _gate = GATE.lock().await;
+    let f = fixture();
+    let ca = FakeCa::new();
+    // `site()` uses the default directory (Let's Encrypt production) and a store inside the fixture.
+    let r = site(&f, ca.clone()).check_reachable().await.unwrap();
+    assert!(r.is_reachable() && r.failure.is_none());
+    assert_eq!(ca.calls.load(Ordering::SeqCst), 1, "exactly one issuance");
+    assert_eq!(
+        r.directory,
+        webservant::acme::LETS_ENCRYPT_STAGING,
+        "production must be replaced by staging"
+    );
+    assert_eq!(r.names, vec!["localhost".to_string()]);
+    assert!(
+        !f.store.exists(),
+        "the configured store was used or created: the check must use a throwaway one"
+    );
+    assert_eq!(leftovers(), 0, "the throwaway store was not removed");
+}
+
+#[tokio::test]
+async fn check_reachable_keeps_a_directory_the_person_chose() {
+    let _gate = GATE.lock().await;
+    let f = fixture();
+    let r = Site::new("localhost")
+        .files(&f.root)
+        .bind("127.0.0.1:0")
+        .http_bind("127.0.0.1:0")
+        .acme(
+            Acme::new("me@example.test")
+                .directory("https://ca.test/dir")
+                .client(FakeCa::new()),
+        )
+        .check_reachable()
+        .await
+        .unwrap();
+    assert_eq!(r.directory, "https://ca.test/dir");
+}
+
+#[tokio::test]
+async fn check_reachable_reports_a_failure_as_an_answer_not_an_error() {
+    let _gate = GATE.lock().await;
+    let f = fixture();
+    let ca = FakeCa::new();
+    *ca.fail_next.lock().unwrap() = true;
+    let r = site(&f, ca).check_reachable().await.unwrap();
+    assert!(!r.is_reachable());
+    assert!(r.failure.unwrap().contains("fake CA is down"));
+    assert_eq!(leftovers(), 0);
+}
+
+#[tokio::test]
+async fn check_reachable_needs_acme_and_does_not_hide_a_listener_problem() {
+    let _gate = GATE.lock().await;
+    let f = fixture();
+    let e = Site::new("localhost")
+        .files(&f.root)
+        .bind("127.0.0.1:0")
+        .check_reachable()
+        .await
+        .unwrap_err();
+    assert!(
+        e.to_string().contains("needs automatic certificates"),
+        "{e}"
+    );
+    // An address in use is a problem with the setup, not an answer about reachability.
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let e = Site::new("localhost")
+        .files(&f.root)
+        .bind("127.0.0.1:0")
+        .http_bind(taken.local_addr().unwrap().to_string())
+        .acme(Acme::new("me@example.test").client(FakeCa::new()))
+        .check_reachable()
+        .await
+        .unwrap_err();
+    assert!(e.to_string().contains("could not start"), "{e}");
+    assert_eq!(leftovers(), 0);
+}
