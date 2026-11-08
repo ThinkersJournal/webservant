@@ -198,7 +198,10 @@ impl Site {
     }
 
     /// Forward requests under `prefix` (such as `/api`) to the app at `upstream` (such as `http://127.0.0.1:3000`), with the prefix removed:
-    /// `/api/users?x=1` becomes `/users?x=1` upstream. Proxy routes are checked before the files. The forwarding headers (`X-Forwarded-For`,
+    /// `/api/users?x=1` becomes `/users?x=1` upstream. Proxy routes are checked before the files. A prefix of `/` alone makes the app the answer
+    /// for everything else, with the path unchanged, and then the files come **first**: a GET or HEAD for something that exists under the files
+    /// directory is served from disk and every other request (other methods, no such file, a directory with no `index.html`, a dotfile) goes to the
+    /// app. There can be only one proxy at `/`; prefix proxies still win over it. The forwarding headers (`X-Forwarded-For`,
     /// `-Proto`, `-Host`) are written by this server and the client's own are dropped; WebSocket upgrades are refused with `501` in this
     /// release; an upstream that is down is a `502` (`504` on a timeout) that does not say where it is.
     pub fn proxy(mut self, prefix: impl Into<String>, upstream: impl Into<String>) -> Self {
@@ -272,9 +275,41 @@ impl Site {
         }
         let plain_server = self.server()?;
         let mut server = self.server()?;
-        // Proxy routes first: the router takes the first route that matches, and the file catch-all matches everything.
+        let files = match &self.files {
+            Some(dir) => {
+                Some(
+                    files::Files::new(dir, self.dotfiles).map_err(|e| Error::FilesDir {
+                        path: dir.clone(),
+                        reason: e.to_string(),
+                    })?,
+                )
+            }
+            None => None,
+        };
+        const ALL: [Method; 7] = [
+            Method::GET,
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ];
+        // Proxy routes with a prefix first: the router takes the first route that matches. The proxy at `/` (if any) and the files come last,
+        // because they match everything.
+        let mut root_proxy = None;
         for (prefix, upstream, options) in &self.proxies {
             let proxy = proxy::Proxy::new(prefix, upstream, *options)?;
+            if proxy.is_root() {
+                if root_proxy.is_some() {
+                    return Err(Error::Proxy {
+                        what: format!("/ -> {upstream}"),
+                        reason: "there can be only one proxy at `/`".into(),
+                    });
+                }
+                root_proxy = Some(proxy);
+                continue;
+            }
             let handler = {
                 let proxy = proxy.clone();
                 move |req: Request| {
@@ -282,26 +317,42 @@ impl Site {
                     async move { proxy.handle(req).await }
                 }
             };
-            let any = [
-                Method::GET,
-                Method::HEAD,
-                Method::POST,
-                Method::PUT,
-                Method::PATCH,
-                Method::DELETE,
-                Method::OPTIONS,
-            ];
-            for m in any {
+            for m in ALL {
                 server = server
                     .route(m.clone(), proxy.prefix(), handler.clone())
                     .route(m, &format!("{}/*rest", proxy.prefix()), handler.clone());
             }
         }
-        if let Some(dir) = &self.files {
-            let files = files::Files::new(dir, self.dotfiles).map_err(|e| Error::FilesDir {
-                path: dir.clone(),
-                reason: e.to_string(),
-            })?;
+        if let Some(proxy) = root_proxy {
+            // Files first, then the app: a GET or HEAD for something that exists under the files directory is served from disk, everything
+            // else (other methods, paths with no file) goes to the app.
+            let handler = move |req: Request| {
+                let (proxy, files) = (proxy.clone(), files.clone());
+                async move {
+                    if let Some(files) = &files
+                        && (req.method() == Method::GET || req.method() == Method::HEAD)
+                    {
+                        let rest = req
+                            .extensions()
+                            .get::<httpant::PathParams>()
+                            .and_then(|p| p.get("rest"))
+                            .unwrap_or("")
+                            .to_owned();
+                        if files.serves(&rest).await {
+                            return files.handle(req).await;
+                        }
+                    }
+                    proxy.handle(req).await
+                }
+            };
+            for m in ALL {
+                server = server.route(m.clone(), "/", handler.clone()).route(
+                    m,
+                    "/*rest",
+                    handler.clone(),
+                );
+            }
+        } else if let Some(files) = files {
             let handler = move |req: Request| {
                 let files = files.clone();
                 async move { files.handle(req).await }

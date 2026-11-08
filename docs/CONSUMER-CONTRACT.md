@@ -11,7 +11,7 @@ can be reviewed either way. "Built" means built and tested in this repository; t
 // Built (0.2.x). The name, contact and store come from the settings WebHostAnt was configured with.
 let site = webservant::Site::new("school.example.org")
     .files("./public")                                   // static files at the root
-    .proxy("/app", "http://127.0.0.1:3000")              // the consumer's own app (a prefix is required; "/" is not allowed yet)
+    .proxy("/app", "http://127.0.0.1:3000")              // the consumer's own app (a prefix of "/" alone would make the app answer everything the files do not)
     .acme(webservant::Acme::new("it@school.example.org").staging().store("/var/lib/webservant"))
     .start().await?;                                     // returns when a certificate is in service
 let certs = site.certificates().unwrap();                // status(), renew_now()
@@ -32,7 +32,7 @@ let certs = site.certificates().unwrap();                // status(), renew_now(
 | C9 | Port 80 redirects to 443 and leaves the challenge path alone (TLS-NEED-LIST 18) | Built (`308`, `421` for a host that is not ours) | Redirect target port follows the HTTPS listener's actual port; not configurable separately |
 | C10 | Configured by settings (ConfigurAnt), not code (DESIGN 0, 6) | **Built and tried with ConfigurAnt (0.3.3):** `Settings` + `Site::from_settings`; the shipped schema `configurant.toml` makes ConfigurAnt 0.6.3 (published) fill `Settings` through `Config::deserialize` (layering, `required`, ranges and unknown keys are ConfigurAnt's; tests/configurant.rs cross-checks it against reading the same document with serde). The command line builds the same struct | Only the **file layer** was exercised (not environment variables or flags, and not ConfigurAnt's TUI/GUI/wizard). ConfigurAnt hands over EMPTY `acme` and `tls` tables when nothing is set, so an empty table counts as absent here. No `--config FILE` on our command line yet |
 | C11 | Runs as a long-lived service: logs to stdout, non-zero exit with a sentence, graceful stop, no prompts (DESIGN 3.1 row 3) | Exit codes and sentences built; **graceful stop on Ctrl-C and, since 0.3.0, SIGTERM on Unix (test runs in Linux CI only) and console close / shutdown on Windows** (`webservant::shutdown_signal()`) | The Windows handling is not tested; Windows *service* control (SCM stop) is not handled; no logging beyond the one start line |
-| C12 | An app of the consumer's can sit behind it (CONSUMER-CONTRACT 1, 4) | Reverse proxy built (#4): prefix, streaming, forwarded headers written by us | Timeouts per route and the site-wide body limit are settings (0.4.0). The proxy needs a **prefix**: a consumer app at `/` is not possible next to the files yet. No WebSocket. Humboldt's authenticated configuration endpoint passes through unchanged because the proxy adds nothing to it |
+| C12 | An app of the consumer's can sit behind it (CONSUMER-CONTRACT 1, 4) | Reverse proxy built (#4): prefix, streaming, forwarded headers written by us | Timeouts per route and the site-wide body limit are settings (0.4.0). The consumer's app can be the proxy at `/` (0.4.1): files that exist are served first, everything else goes to the app. No WebSocket. Humboldt's authenticated configuration endpoint passes through unchanged because the proxy adds nothing to it |
 
 ## What WebHostAnt must not assume
 

@@ -59,6 +59,22 @@ impl Files {
         })
     }
 
+    /// Would [`Files::handle`] answer this path with a file (a file, or a directory with an `index.html`)? A forbidden path, a missing one, and a
+    /// directory without an index are all "no": a root proxy forwards those to the app.
+    pub(crate) async fn serves(&self, rest: &str) -> bool {
+        let Ok(target) = self.resolve(rest).await else {
+            return false;
+        };
+        if target.meta.is_file() {
+            return true;
+        }
+        target.meta.is_dir()
+            && self
+                .resolve_under(&target.path, "index.html")
+                .await
+                .is_ok_and(|i| i.meta.is_file())
+    }
+
     pub(crate) async fn handle(&self, req: Request) -> Response {
         let rest = req
             .extensions()

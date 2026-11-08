@@ -587,3 +587,180 @@ async fn timeouts_and_the_limit_reach_the_site_from_settings_and_zero_is_refused
         .unwrap_err();
     assert!(e.to_string().contains("timeout of 0"), "{e}");
 }
+
+// ---- a proxy at `/` with the files in front of it ----
+
+#[tokio::test]
+async fn a_root_proxy_serves_existing_files_first_and_sends_the_rest_to_the_app() {
+    let (up, calls) = upstream().await;
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("public");
+    fs::create_dir_all(root.join("docs")).unwrap();
+    fs::create_dir_all(root.join("weird").join("index.html")).unwrap(); // an index.html that is a DIRECTORY
+    fs::write(root.join("a.txt"), "file a").unwrap();
+    fs::write(root.join(".hidden"), "dot").unwrap();
+    let site = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .files(&root)
+        .proxy("/", format!("http://{}", up.addr()))
+        .start()
+        .await
+        .unwrap();
+
+    // A file that exists is served from disk and the app is not asked.
+    assert_eq!(
+        raw(site.addr(), "GET", "/a.txt", &[], b"").await.text(),
+        "file a"
+    );
+    assert_eq!(
+        raw(site.addr(), "HEAD", "/a.txt", &[], b"").await.status,
+        200
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "the app was asked for a file that exists"
+    );
+
+    // Everything else goes to the app, with the path unchanged (there is no prefix to strip).
+    assert!(
+        raw(site.addr(), "GET", "/nothing/here?x=1", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /nothing/here?x=1
+"
+            )
+    );
+    assert!(
+        raw(site.addr(), "GET", "/", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /
+"
+            ),
+        "no index.html: the app answers /"
+    );
+    assert!(
+        raw(site.addr(), "GET", "/docs/", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /docs/
+"
+            ),
+        "a directory without an index goes to the app"
+    );
+    // Only GET and HEAD look at the files: a POST to a path that is a file goes to the app.
+    assert!(
+        raw(site.addr(), "POST", "/a.txt", &[], b"x")
+            .await
+            .text()
+            .starts_with(
+                "POST /a.txt
+"
+            )
+    );
+    // A dotfile is not served, so it is the app's to answer (not a 404 from the files).
+    assert!(
+        raw(site.addr(), "GET", "/.hidden", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /.hidden
+"
+            )
+    );
+    assert!(
+        raw(site.addr(), "GET", "/weird/", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /weird/
+"
+            ),
+        "an index.html that is a directory is not an index"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 6);
+}
+
+#[tokio::test]
+async fn an_index_html_is_served_at_the_root_before_the_app() {
+    let (up, calls) = upstream().await;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("index.html"), "home from disk").unwrap();
+    let site = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .files(tmp.path())
+        .proxy("/", format!("http://{}", up.addr()))
+        .start()
+        .await
+        .unwrap();
+    assert_eq!(
+        raw(site.addr(), "GET", "/", &[], b"").await.text(),
+        "home from disk"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_prefix_proxy_beats_the_root_proxy_and_a_root_only_site_forwards_everything() {
+    let (api, api_calls) = upstream().await;
+    let (app, app_calls) = upstream().await;
+    let site = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .proxy("/", format!("http://{}", app.addr()))
+        .proxy("/api", format!("http://{}", api.addr()))
+        .start()
+        .await
+        .unwrap();
+    // Registered root-first on purpose: the prefix route must still win.
+    assert!(
+        raw(site.addr(), "GET", "/api/x", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /x
+"
+            )
+    );
+    assert!(
+        raw(site.addr(), "GET", "/y", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /y
+"
+            )
+    );
+    assert_eq!(
+        (
+            api_calls.load(Ordering::SeqCst),
+            app_calls.load(Ordering::SeqCst)
+        ),
+        (1, 1)
+    );
+    // No files at all: even `/` is the app's.
+    assert!(
+        raw(site.addr(), "GET", "/", &[], b"")
+            .await
+            .text()
+            .starts_with(
+                "GET /
+"
+            )
+    );
+}
+
+#[tokio::test]
+async fn two_proxies_at_the_root_are_refused() {
+    let e = Site::new("a")
+        .bind("127.0.0.1:0")
+        .proxy("/", "http://127.0.0.1:1")
+        .proxy("/", "http://127.0.0.1:2")
+        .start()
+        .await
+        .unwrap_err();
+    assert!(e.to_string().contains("only one proxy at `/`"), "{e}");
+}

@@ -75,13 +75,16 @@ impl Proxy {
             what: format!("{prefix} -> {}", redact(upstream)),
             reason: reason.to_owned(),
         };
-        if !prefix.starts_with('/')
-            || prefix.len() < 2
-            || prefix.ends_with('/')
-            || prefix.contains(['?', '#', '*', ':'])
+        // `/` alone is the root: everything not claimed by another route or served from the files.
+        let root = prefix == "/";
+        if !root
+            && (!prefix.starts_with('/')
+                || prefix.len() < 2
+                || prefix.ends_with('/')
+                || prefix.contains(['?', '#', '*', ':']))
         {
             return Err(bad(
-                "the prefix must start with `/`, name a path such as `/api`, and not end with `/`",
+                "the prefix must start with `/`, name a path such as `/api` (or be `/` alone for everything), and not end with `/`",
             ));
         }
         let uri: http::Uri = upstream
@@ -117,15 +120,24 @@ impl Proxy {
             .map_err(Error::from)?;
         Ok(Self {
             inner: Arc::new(Inner {
-                prefix: prefix.to_owned(),
+                prefix: if root {
+                    String::new()
+                } else {
+                    prefix.to_owned()
+                },
                 base,
                 client,
             }),
         })
     }
 
+    /// The prefix, empty for the root proxy.
     pub(crate) fn prefix(&self) -> &str {
         &self.inner.prefix
+    }
+
+    pub(crate) fn is_root(&self) -> bool {
+        self.inner.prefix.is_empty()
     }
 
     pub(crate) async fn handle(&self, req: Request) -> Response {
@@ -311,7 +323,6 @@ mod tests {
     fn upstream_and_prefix_are_validated() {
         for (p, u) in [
             ("api", "http://127.0.0.1:1"),
-            ("/", "http://127.0.0.1:1"),
             ("/api/", "http://127.0.0.1:1"),
             ("/api", "ftp://x"),
             ("/api", "http://u:p@host"),
