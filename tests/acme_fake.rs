@@ -627,6 +627,23 @@ async fn on_windows_the_store_is_private_to_the_current_user() {
         "the control directory already has a single principal, so this test proves nothing here: {before:?}"
     );
 
+    // CI runners create directories whose entries for SYSTEM and Administrators are EXPLICIT, not inherited, and removing inheritance leaves those
+    // alone. Reproduce that: pre-create the store and grant Everyone and Administrators explicitly.
+    fs::create_dir_all(&f.store).unwrap();
+    let sys = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    for sid in ["*S-1-1-0:(OI)(CI)R", "*S-1-5-32-544:(OI)(CI)F"] {
+        let granted = std::process::Command::new(format!(r"{sys}\System32\icacls.exe"))
+            .arg(&f.store)
+            .args(["/grant", sid])
+            .output()
+            .unwrap();
+        assert!(granted.status.success());
+    }
+    assert!(
+        acl_principals(&f.store).len() > 1,
+        "the explicit grants did not take"
+    );
+
     let running = site(&f, FakeCa::new()).start().await.unwrap();
     running.shutdown().await.unwrap();
 

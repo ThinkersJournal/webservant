@@ -358,14 +358,77 @@ fn restrict_dir(dir: &Path) -> Result<(), AcmeError> {
         .arg("/Q")
         .output()
         .map_err(|e| fail(format!("cannot run icacls: {e}")))?;
-    if out.status.success() {
+    if !out.status.success() {
+        return Err(fail(format!(
+            "icacls failed: {}",
+            String::from_utf8_lossy(&out.stdout).trim()
+        )));
+    }
+    // Removing inheritance leaves EXPLICIT entries alone, and some systems create directories with explicit entries for SYSTEM and
+    // Administrators (a CI runner did): remove every principal that is not the current user until only the user is left.
+    let user = text
+        .trim()
+        .split(',')
+        .next()
+        .map(|f| f.trim().trim_matches('"').to_ascii_lowercase())
+        .unwrap_or_default();
+    let others = || -> Result<Vec<String>, AcmeError> {
+        let listing = Command::new(system32.join("icacls.exe"))
+            .arg(dir)
+            .output()
+            .map_err(|e| fail(format!("cannot run icacls: {e}")))?;
+        Ok(
+            acl_principals(&String::from_utf8_lossy(&listing.stdout), dir)
+                .into_iter()
+                .filter(|p| !p.eq_ignore_ascii_case(&user) && !p.eq_ignore_ascii_case(&sid))
+                .collect(),
+        )
+    };
+    for _ in 0..4 {
+        let extra = others()?;
+        if extra.is_empty() {
+            return Ok(());
+        }
+        for principal in extra {
+            let target = if principal.starts_with("S-1-") {
+                format!("*{principal}")
+            } else {
+                principal
+            };
+            Command::new(system32.join("icacls.exe"))
+                .arg(dir)
+                .arg("/remove")
+                .arg(&target)
+                .args(["/T", "/Q"])
+                .output()
+                .map_err(|e| fail(format!("cannot run icacls: {e}")))?;
+        }
+    }
+    let left = others()?;
+    if left.is_empty() {
         Ok(())
     } else {
         Err(fail(format!(
-            "icacls failed: {}",
-            String::from_utf8_lossy(&out.stdout).trim()
+            "other accounts still have access ({})",
+            left.join(", ")
         )))
     }
+}
+
+/// The principals in `icacls <dir>` output: lines look like `<path> DOMAIN\user:(OI)(CI)(F)` first and `<spaces>DOMAIN\user:(I)(F)` after,
+/// with a summary line last.
+#[cfg(windows)]
+fn acl_principals(listing: &str, dir: &Path) -> Vec<String> {
+    let path = dir.display().to_string();
+    listing
+        .lines()
+        .filter_map(|l| {
+            let l = l.trim();
+            let l = l.strip_prefix(&path).map_or(l, str::trim);
+            let (who, rights) = l.rsplit_once(":(")?;
+            rights.contains(')').then(|| who.trim().to_owned())
+        })
+        .collect()
 }
 
 #[cfg(not(any(unix, windows)))]
