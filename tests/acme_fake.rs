@@ -589,3 +589,96 @@ async fn check_reachable_needs_acme_and_does_not_hide_a_listener_problem() {
     assert!(e.to_string().contains("could not start"), "{e}");
     assert_eq!(leftovers(), 0);
 }
+
+// ---- the store is private ----
+
+/// The principals in a directory's ACL, from `icacls` (Windows only).
+#[cfg(windows)]
+fn acl_principals(dir: &std::path::Path) -> Vec<String> {
+    let sys = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    let out = std::process::Command::new(format!(r"{sys}\System32\icacls.exe"))
+        .arg(dir)
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    // Lines look like `<path> DOMAIN\user:(OI)(CI)(F)` first and `<spaces>DOMAIN\user:(I)(F)` after; the last line is a summary.
+    text.lines()
+        .filter_map(|l| {
+            let l = l.trim();
+            let l = l
+                .strip_prefix(&dir.display().to_string())
+                .map_or(l, str::trim);
+            let (who, rights) = l.rsplit_once(":(")?;
+            rights.contains(')').then(|| who.trim().to_owned())
+        })
+        .collect()
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn on_windows_the_store_is_private_to_the_current_user() {
+    let f = fixture();
+    // The control: a plain directory created by the same process has several principals (SYSTEM, Administrators, the user, ...).
+    let plain = f._tmp.path().join("plain");
+    fs::create_dir_all(&plain).unwrap();
+    let before = acl_principals(&plain);
+    assert!(
+        before.len() > 1,
+        "the control directory already has a single principal, so this test proves nothing here: {before:?}"
+    );
+
+    // CI runners create directories whose entries for SYSTEM and Administrators are EXPLICIT, not inherited, and removing inheritance leaves those
+    // alone. Reproduce that: pre-create the store and grant Everyone and Administrators explicitly.
+    fs::create_dir_all(&f.store).unwrap();
+    let sys = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+    for sid in ["*S-1-1-0:(OI)(CI)R", "*S-1-5-32-544:(OI)(CI)F"] {
+        let granted = std::process::Command::new(format!(r"{sys}\System32\icacls.exe"))
+            .arg(&f.store)
+            .args(["/grant", sid])
+            .output()
+            .unwrap();
+        assert!(granted.status.success());
+    }
+    assert!(
+        acl_principals(&f.store).len() > 1,
+        "the explicit grants did not take"
+    );
+
+    let running = site(&f, FakeCa::new()).start().await.unwrap();
+    running.shutdown().await.unwrap();
+
+    let after = acl_principals(&f.store);
+    assert_eq!(
+        after.len(),
+        1,
+        "the store must grant exactly one principal: {after:?}"
+    );
+    assert!(
+        after[0]
+            .to_ascii_lowercase()
+            .ends_with(&std::env::var("USERNAME").unwrap().to_ascii_lowercase()),
+        "the one principal is not the current user: {after:?}"
+    );
+    // The files inside inherit the same restriction.
+    let key = fs::read_dir(f.store.join("certs"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path()
+        .join("key.pem");
+    assert_eq!(acl_principals(&key).len(), 1, "{:?}", acl_principals(&key));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn on_unix_the_store_directory_is_mode_0700() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture();
+    let running = site(&f, FakeCa::new()).start().await.unwrap();
+    running.shutdown().await.unwrap();
+    assert_eq!(
+        fs::metadata(&f.store).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+}
