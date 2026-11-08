@@ -45,7 +45,8 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   issuance against Let's Encrypt **staging** with a throwaway store, keeps nothing, and tells you which step failed (for example that the certificate
   authority could not reach port 80 on this machine). Run it before the real thing.
 - **Configuration as data.** `Settings` (serde; a misspelled key is an error that names it) and `Site::from_settings` build the same site as the
-  builder and the command line, so a settings system or a file in any serde format can drive it with no code.
+  builder and the command line, so a settings system or a file in any serde format can drive it with no code. `configurant.toml` is the schema that lets
+  [ConfigurAnt](https://crates.io/crates/configurant) fill it (layering, required keys and ranges are checked there; tested with ConfigurAnt 0.6.3).
 - **The web library is a setting.** Hyper by default; after `cargo add webservant --features axum` (or actix-web, poem, salvo, warp),
   `.adapter("axum")` picks another and nothing else changes. Without the feature, the error says to turn it on.
 - **Errors say what to do next.** Every message ends with the fix.
