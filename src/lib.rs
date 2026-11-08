@@ -21,6 +21,7 @@ pub mod acme;
 mod error;
 mod files;
 mod proxy;
+mod settings;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -36,6 +37,7 @@ pub use acme::{
 };
 pub use error::{Error, Result};
 pub use httpant::server::{RefusalReason, ServedCert, TlsEvent};
+pub use settings::{AcmeSettings, ProxyRoute, Settings, TlsFiles};
 
 /// The address used when you do not choose one: this machine only.
 pub const DEFAULT_BIND: &str = "127.0.0.1:8080";

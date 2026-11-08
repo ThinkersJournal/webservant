@@ -27,6 +27,8 @@ pub enum Error {
     NoStore,
     /// A proxy route is not usable.
     Proxy { what: String, reason: String },
+    /// A setting is missing or wrong (the text names it).
+    Settings(String),
     /// Reading back the served certificate failed.
     ReadBack(String),
     /// The server (HTTPAnt) failed: usually the address is taken or not allowed.
@@ -70,6 +72,7 @@ impl fmt::Display for Error {
                 f,
                 "cannot proxy `{what}`: {reason}. Write it as `.proxy(\"/api\", \"http://127.0.0.1:3000\")`."
             ),
+            Self::Settings(why) => f.write_str(why),
             Self::ReadBack(why) => write!(
                 f,
                 "could not read back the served certificate: {why}. Check that the name is one the site holds and that the HTTPS listener is up."
