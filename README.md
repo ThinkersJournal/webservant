@@ -40,7 +40,9 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
 - **Reverse proxy.** `.proxy("/api", "http://127.0.0.1:3000")` (or `--proxy /api=http://127.0.0.1:3000`, repeatable) sends `/api/...` to your app
   with the prefix removed, next to the files. The client's `X-Forwarded-*` and `Forwarded` headers are dropped and replaced with what this server
   established, hop-by-hop headers stop here, bodies stream both ways, and an upstream that is down is a `502` (`504` on a timeout) that does not say
-  where it is. WebSocket upgrades are refused with `501` in this release; only the common methods are forwarded.
+  where it is. WebSocket upgrades are refused with `501` in this release; only the common methods are forwarded. The timeouts (connect 5 s,
+  response head 60 s, quiet body 60 s) are settings per route (`proxy_with`, or `*_timeout_secs` in `Settings`), and the request body limit (2 MiB) is
+  `max_body_bytes` / `--max-body`: it applies to the whole site, so raise it for an upload endpoint knowing it raises it everywhere.
 - **Will it work here?** `webservant check --name example.org --acme you@example.org --files ./public` (or `Site::check_reachable()`) does one real
   issuance against Let's Encrypt **staging** with a throwaway store, keeps nothing, and tells you which step failed (for example that the certificate
   authority could not reach port 80 on this machine). Run it before the real thing.

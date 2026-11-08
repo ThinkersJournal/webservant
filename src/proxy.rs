@@ -36,6 +36,27 @@ const FORWARDING: [&str; 4] = [
     "x-forwarded-host",
 ];
 
+/// How long a proxy waits. Every value is finite; zero is refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProxyOptions {
+    /// To open a connection to the upstream (default 5 s).
+    pub connect_timeout: Duration,
+    /// For the upstream's response head after the request was sent (default 60 s); past it the answer is `504`.
+    pub response_timeout: Duration,
+    /// For the upstream to send the next part of a response body (default 60 s); past it the response is cut off.
+    pub idle_timeout: Duration,
+}
+
+impl Default for ProxyOptions {
+    fn default() -> Self {
+        Self {
+            connect_timeout: Duration::from_secs(5),
+            response_timeout: Duration::from_secs(60),
+            idle_timeout: Duration::from_secs(60),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Proxy {
     inner: Arc<Inner>,
@@ -49,7 +70,7 @@ struct Inner {
 }
 
 impl Proxy {
-    pub(crate) fn new(prefix: &str, upstream: &str) -> Result<Self> {
+    pub(crate) fn new(prefix: &str, upstream: &str, options: ProxyOptions) -> Result<Self> {
         let bad = |reason: &str| Error::Proxy {
             what: format!("{prefix} -> {}", redact(upstream)),
             reason: reason.to_owned(),
@@ -80,10 +101,18 @@ impl Proxy {
             return Err(bad("the upstream must not contain a query or fragment"));
         }
         let base = format!("{scheme}://{authority}{}", uri.path().trim_end_matches('/'));
+        if options.connect_timeout.is_zero()
+            || options.response_timeout.is_zero()
+            || options.idle_timeout.is_zero()
+        {
+            return Err(bad(
+                "a timeout of 0 would fail every request: use 1 second or more",
+            ));
+        }
         let client = Client::builder()
-            .connect_timeout(Duration::from_secs(5))
-            .timeout(Duration::from_secs(60))
-            .read_timeout(Duration::from_secs(60))
+            .connect_timeout(options.connect_timeout)
+            .timeout(options.response_timeout)
+            .read_timeout(options.idle_timeout)
             .build()
             .map_err(Error::from)?;
         Ok(Self {
@@ -290,18 +319,32 @@ mod tests {
             ("/api", "not a url"),
             ("/a*", "http://host"),
         ] {
-            assert!(Proxy::new(p, u).is_err(), "{p} {u}");
+            assert!(
+                Proxy::new(p, u, ProxyOptions::default()).is_err(),
+                "{p} {u}"
+            );
         }
-        assert!(Proxy::new("/api", "http://127.0.0.1:3000").is_ok());
-        assert!(Proxy::new("/api/v1", "https://example.org/base/").is_ok());
+        assert!(Proxy::new("/api", "http://127.0.0.1:3000", ProxyOptions::default()).is_ok());
+        assert!(
+            Proxy::new(
+                "/api/v1",
+                "https://example.org/base/",
+                ProxyOptions::default()
+            )
+            .is_ok()
+        );
     }
 
     #[test]
     fn the_error_text_never_holds_a_password_or_query() {
-        let e = Proxy::new("/api", "ftp://user:secretpw@host/?token=abc")
-            .err()
-            .unwrap()
-            .to_string();
+        let e = Proxy::new(
+            "/api",
+            "ftp://user:secretpw@host/?token=abc",
+            ProxyOptions::default(),
+        )
+        .err()
+        .unwrap()
+        .to_string();
         assert!(!e.contains("secretpw") && !e.contains("token=abc"), "{e}");
     }
 }

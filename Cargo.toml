@@ -1,6 +1,6 @@
 [package]
 name = "webservant"
-version = "0.3.4"
+version = "0.4.0"
 edition = "2024"
 description = "Reserved name: a web server program that works with any Rust web library (built on HTTPAnt). Placeholder, no functionality yet."
 license = "MIT OR Apache-2.0"

@@ -95,6 +95,33 @@ async fn upstream() -> (httpant::RunningServer, Arc<AtomicUsize>) {
                 .path_and_query()
                 .map(|p| p.as_str().to_owned())
                 .unwrap_or_default();
+            if parts.uri.path() == "/slow" {
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            }
+            if parts.uri.path() == "/stall" {
+                // The head and the first part go out at once; the rest comes after two quiet seconds.
+                let parts_of_body = futures_util::stream::unfold(0u8, |step| async move {
+                    match step {
+                        0 => Some((
+                            Ok::<_, std::io::Error>(http_body::Frame::data(
+                                bytes::Bytes::from_static(b"START"),
+                            )),
+                            1,
+                        )),
+                        1 => {
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            Some((
+                                Ok(http_body::Frame::data(bytes::Bytes::from_static(b"END"))),
+                                2,
+                            ))
+                        }
+                        _ => None,
+                    }
+                });
+                return Response::new(httpant::Body::new(http_body_util::StreamBody::new(
+                    parts_of_body,
+                )));
+            }
             if let Some(n) = parts.uri.path().strip_prefix("/status/") {
                 let mut res = Response::new(httpant::Body::from_bytes("teapot body"));
                 *res.status_mut() = http::StatusCode::from_u16(n.parse().unwrap()).unwrap();
@@ -393,4 +420,170 @@ async fn bad_proxy_settings_are_named_at_start() {
             .to_string()
             .contains("nothing to serve")
     );
+}
+
+// ---- timeouts and the body limit as settings ----
+
+use std::time::{Duration, Instant};
+use webservant::ProxyOptions;
+
+#[tokio::test]
+async fn a_response_timeout_makes_a_504_and_the_default_waits() {
+    let (up, _) = upstream().await;
+    let quick = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .proxy_with(
+            "/api",
+            format!("http://{}", up.addr()),
+            ProxyOptions {
+                response_timeout: Duration::from_secs(1),
+                ..Default::default()
+            },
+        )
+        .start()
+        .await
+        .unwrap();
+    let t = Instant::now();
+    let r = raw(quick.addr(), "GET", "/api/slow", &[], b"").await;
+    assert_eq!((r.status, r.text()), (504, "gateway timeout".into()));
+    assert!(
+        t.elapsed() < Duration::from_millis(2800),
+        "the 504 came only after {:?}",
+        t.elapsed()
+    );
+
+    // The control: with the default (60 s) the same request is answered, after the upstream's 3 s.
+    let (_t, patient) = front(&up, false).await;
+    assert_eq!(
+        raw(patient.addr(), "GET", "/api/slow", &[], b"")
+            .await
+            .status,
+        200
+    );
+}
+
+#[tokio::test]
+async fn an_idle_timeout_cuts_off_a_response_that_goes_quiet() {
+    let (up, _) = upstream().await;
+    let impatient = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .proxy_with(
+            "/api",
+            format!("http://{}", up.addr()),
+            ProxyOptions {
+                idle_timeout: Duration::from_secs(1),
+                ..Default::default()
+            },
+        )
+        .start()
+        .await
+        .unwrap();
+    // The head and "START" arrive, then two quiet seconds: past one second of quiet the body is cut off, so "END" never arrives.
+    let cut = raw_lenient(impatient.addr(), "/api/stall").await;
+    assert!(cut.contains("START") && !cut.contains("END"), "{cut:?}");
+    // The control: the default waits the two seconds and delivers everything.
+    let (_t, patient) = front(&up, false).await;
+    let whole = raw_lenient(patient.addr(), "/api/stall").await;
+    assert!(
+        whole.contains("START") && whole.contains("END"),
+        "{whole:?}"
+    );
+}
+
+/// Everything the peer sends for a GET, however the connection ends (a cut-off body is an error mid-stream).
+async fn raw_lenient(addr: std::net::SocketAddr, target: &str) -> String {
+    let mut s = TcpStream::connect(addr).await.unwrap();
+    s.write_all(
+        format!(
+            "GET {target} HTTP/1.1
+Host: front.test
+Connection: close
+
+"
+        )
+        .as_bytes(),
+    )
+    .await
+    .unwrap();
+    let mut buf = Vec::new();
+    let _ = s.read_to_end(&mut buf).await;
+    String::from_utf8_lossy(&buf).into_owned()
+}
+
+#[tokio::test]
+async fn the_body_limit_is_a_setting_and_a_bigger_body_never_reaches_the_upstream() {
+    let (up, calls) = upstream().await;
+    let site = Site::new("front.test")
+        .bind("127.0.0.1:0")
+        .max_body_bytes(1000)
+        .proxy("/api", format!("http://{}", up.addr()))
+        .start()
+        .await
+        .unwrap();
+    assert_eq!(
+        raw(site.addr(), "POST", "/api/up", &[], &[b'a'; 500])
+            .await
+            .status,
+        200
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        raw(site.addr(), "POST", "/api/up", &[], &[b'a'; 2000])
+            .await
+            .status,
+        413
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "the oversize body reached the upstream"
+    );
+}
+
+#[tokio::test]
+async fn timeouts_and_the_limit_reach_the_site_from_settings_and_zero_is_refused() {
+    let (up, _) = upstream().await;
+    let json = format!(
+        r#"{{"name":"front.test","bind":"127.0.0.1:0","max_body_bytes":1000,
+            "proxy":[{{"prefix":"/api","upstream":"http://{}","response_timeout_secs":1}}]}}"#,
+        up.addr()
+    );
+    let s: webservant::Settings = serde_json::from_str(&json).unwrap();
+    let site = Site::from_settings(&s).unwrap().start().await.unwrap();
+    assert_eq!(
+        raw(site.addr(), "GET", "/api/slow", &[], b"").await.status,
+        504
+    );
+    assert_eq!(
+        raw(site.addr(), "POST", "/api/up", &[], &[b'a'; 2000])
+            .await
+            .status,
+        413
+    );
+
+    let zero: webservant::Settings = serde_json::from_str(
+        r#"{"name":"a","proxy":[{"prefix":"/api","upstream":"http://127.0.0.1:1","idle_timeout_secs":0}]}"#,
+    )
+    .unwrap();
+    assert!(
+        Site::from_settings(&zero)
+            .unwrap_err()
+            .to_string()
+            .contains("idle_timeout_secs")
+    );
+    // And the builder refuses a zero Duration at start.
+    let e = Site::new("a")
+        .bind("127.0.0.1:0")
+        .proxy_with(
+            "/api",
+            "http://127.0.0.1:1",
+            ProxyOptions {
+                connect_timeout: Duration::ZERO,
+                ..Default::default()
+            },
+        )
+        .start()
+        .await
+        .unwrap_err();
+    assert!(e.to_string().contains("timeout of 0"), "{e}");
 }

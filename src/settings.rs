@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Acme, Error, Result, Site};
+use crate::{Acme, Error, ProxyOptions, Result, Site};
 
 /// Everything a site needs. Only `name` is required, and one of `files` or a `proxy` entry; every other field has the default the builder has.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,6 +28,8 @@ pub struct Settings {
     pub adapter: Option<String>,
     /// Serve names starting with a dot.
     pub dotfiles: bool,
+    /// The largest request body accepted, in bytes (default 2 MiB). A bigger one is refused with `413`. Applies to the whole site.
+    pub max_body_bytes: Option<u64>,
     /// A certificate and key you already have. A table with nothing set in it counts as absent.
     pub tls: Option<TlsFiles>,
     /// Automatic certificates. A table with nothing set in it counts as absent.
@@ -74,6 +76,12 @@ pub struct ProxyRoute {
     pub prefix: String,
     /// The app, such as `http://127.0.0.1:3000`.
     pub upstream: String,
+    /// Seconds allowed to open a connection to the app (default 5).
+    pub connect_timeout_secs: Option<u64>,
+    /// Seconds allowed for the app's response head (default 60); past it the answer is `504`.
+    pub response_timeout_secs: Option<u64>,
+    /// Seconds the app's response body may stay quiet (default 60); past it the response is cut off.
+    pub idle_timeout_secs: Option<u64>,
 }
 
 fn bad(what: &str, why: &str) -> Error {
@@ -102,8 +110,40 @@ impl Site {
         if let Some(a) = &s.adapter {
             site = site.adapter(a);
         }
+        if let Some(n) = s.max_body_bytes {
+            site = site.max_body_bytes(n);
+        }
         for r in &s.proxy {
-            site = site.proxy(&r.prefix, &r.upstream);
+            let mut o = ProxyOptions::default();
+            for (what, secs, slot) in [
+                (
+                    "connect_timeout_secs",
+                    r.connect_timeout_secs,
+                    &mut o.connect_timeout,
+                ),
+                (
+                    "response_timeout_secs",
+                    r.response_timeout_secs,
+                    &mut o.response_timeout,
+                ),
+                (
+                    "idle_timeout_secs",
+                    r.idle_timeout_secs,
+                    &mut o.idle_timeout,
+                ),
+            ] {
+                match secs {
+                    Some(0) => {
+                        return Err(bad(
+                            &format!("proxy.{what}"),
+                            "is 0: use a number of seconds of 1 or more, or leave it out for the default",
+                        ));
+                    }
+                    Some(n) => *slot = Duration::from_secs(n),
+                    None => {}
+                }
+            }
+            site = site.proxy_with(&r.prefix, &r.upstream, o);
         }
         // A table with nothing set in it is the same as no table: settings systems that bind by dotted key (ConfigurAnt) produce an empty
         // `tls` and `acme` whenever the schema declares keys under them, whether or not any was set, and that must not turn automatic

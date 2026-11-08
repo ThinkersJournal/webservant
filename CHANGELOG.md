@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.0] - 2026-11-08
+
+- Breaking (pre-1.0, public structs gained fields): `Settings::max_body_bytes`, `ProxyRoute::{connect,response,idle}_timeout_secs`. New: `Site::max_body_bytes`, `Site::proxy_with` and `ProxyOptions` (per-route timeouts; zero is refused), `--max-body BYTES`, and the matching keys in `configurant.toml`. Version proposed; the PM allocates it at the gate.
+
 ## [0.3.4] - 2026-11-08
 
 - The ACME store directory is made private before the first write: mode 0700 on Unix; on Windows inherited permissions are removed and only the current user is granted access (`icacls`, by SID, system tools by full path). If it cannot be made private nothing is written. Version proposed; the PM allocates it at the gate.

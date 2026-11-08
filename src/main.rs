@@ -3,7 +3,7 @@
 
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles]\n\
+const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles] [--max-body BYTES]\n\
 automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
 forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
 will automatic HTTPS work here? (one staging issuance, nothing kept): webservant check --name HOST --acme you@example.org --files DIR\n\
@@ -24,6 +24,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
     let (mut name, mut files, mut bind, mut cert, mut key, mut dot) =
         ("localhost".to_owned(), None, None, None, None, false);
     let mut proxies: Vec<(String, String)> = Vec::new();
+    let mut max_body: Option<u64> = None;
     let (mut acme, mut staging, mut store, mut http_bind, mut also) =
         (None, false, None, None, Vec::new());
     while let Some(flag) = it.next() {
@@ -38,6 +39,15 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             "--cert" => cert = Some(value("--cert")?),
             "--key" => key = Some(value("--key")?),
             "--dotfiles" => dot = true,
+            "--max-body" => {
+                let v = value("--max-body")?;
+                max_body = Some(v.parse::<u64>().map_err(|_| {
+                    format!(
+                        "`--max-body` takes a number of bytes, for example `--max-body 10485760`.
+{USAGE}"
+                    )
+                })?);
+            }
             "--proxy" => {
                 let v = value("--proxy")?;
                 let (prefix, upstream) = v.split_once('=').ok_or_else(|| {
@@ -78,6 +88,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         http_bind,
         adapter: None,
         dotfiles: dot,
+        max_body_bytes: max_body,
         tls,
         acme: acme.map(|contact| webservant::AcmeSettings {
             contact,
@@ -88,7 +99,11 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         }),
         proxy: proxies
             .into_iter()
-            .map(|(prefix, upstream)| webservant::ProxyRoute { prefix, upstream })
+            .map(|(prefix, upstream)| webservant::ProxyRoute {
+                prefix,
+                upstream,
+                ..Default::default()
+            })
             .collect(),
     })
 }

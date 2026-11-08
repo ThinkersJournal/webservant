@@ -41,6 +41,12 @@ default = false
 description = "also serve names that start with a dot (.git, .env)"
 
 [[value]]
+key = "max_body_bytes"
+type = "int"
+min = 0
+description = "the largest request body accepted, in bytes (default 2 MiB); a bigger one is refused with 413; applies to the whole site"
+
+[[value]]
 key = "tls.cert"
 type = "path"
 description = "PEM certificate chain (leaf first) for a certificate you already have"
@@ -102,3 +108,21 @@ key = "upstream"
 type = "string"
 required = true
 description = "the app, such as http://127.0.0.1:3000"
+
+[[table.field]]
+key = "connect_timeout_secs"
+type = "int"
+min = 1
+description = "seconds allowed to open a connection to the app (default 5)"
+
+[[table.field]]
+key = "response_timeout_secs"
+type = "int"
+min = 1
+description = "seconds allowed for the app's response head (default 60); past it the answer is 504"
+
+[[table.field]]
+key = "idle_timeout_secs"
+type = "int"
+min = 1
+description = "seconds the app's response body may stay quiet (default 60); past it the response is cut off"
