@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-11-08
+
+- Breaking (pre-1.0): the unreachable TLS-ALPN-01 code is removed (`ChallengeKind` is `#[non_exhaustive]` with only `Http01`; `Challenges::put_alpn`/`clear_alpn` are gone) so the first version has none of the four mechanisms that need a re-sweep (on-demand issuance, DNS-01, TLS-ALPN-01, WebSocket). `rcgen` is no longer a dependency (tests only).
+- `RunningSite::served_certificate(name)`: read back what the HTTPS listener really serves. `Site::on_tls_event`: HTTPAnt's refused-handshake and certificate-changed events. `webservant::shutdown_signal()` and SIGTERM / console-close handling in `serve` and the binary. Version proposed; the PM allocates it at the gate.
+
 ## [0.2.2] - 2026-11-08
 
 - Docs only: `docs/CONSUMER-CONTRACT.md` (what WebHostAnt's local serving gets, and what it does not). Version proposed.

@@ -31,7 +31,9 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
 - **Automatic HTTPS.** `Site::new("example.org").files("./public").acme(Acme::new("you@example.org").staging())` (or
   `webservant serve --files ./public --name example.org --acme you@example.org --staging`) gets a certificate from Let's Encrypt, answers the
   HTTP-01 challenge on port 80, serves HTTPS on port 443, redirects port 80 to it, and renews before expiry with no restart (a failed renewal keeps
-  the current certificate and reports the failure). **Do the first run with `--staging`**: production has rate limits that a DNS or port mistake
+  the current certificate and reports the failure). `RunningSite::served_certificate(name)` reads back what the HTTPS listener really presents
+  (the proof; `status()` only says what we put in service), `Site::on_tls_event` reports refused handshakes and a renewal taking effect, and
+  `SIGTERM` (`systemctl stop`, `docker stop`) stops the server cleanly, as Ctrl-C does. **Do the first run with `--staging`**: production has rate limits that a DNS or port mistake
   can use up, and staging certificates are not trusted by browsers. A name that cannot get a certificate stops the start with a sentence that says
   which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys:
   `--acme-store DIR` to choose another).
@@ -45,7 +47,7 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
 
 ## What it does not do yet
 
-The TLS-ALPN-01 challenge (waiting on HTTPAnt: its `ServerCert` rejects the RFC 8737 validation certificate), DNS-01 and wildcards, compression, directory listings and anything for visitors to sign in with are not in this release.
+The TLS-ALPN-01 and DNS-01 challenges (and so wildcard certificates), issuing a certificate on demand for a name nobody configured, WebSocket forwarding (each of these needs a new patent re-sweep first), compression, directory listings and anything for visitors to sign in with are not in this release.
 The plan and the reasons are in [ROADMAP.md](ROADMAP.md) and [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Status

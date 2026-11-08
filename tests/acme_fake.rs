@@ -371,3 +371,126 @@ async fn the_server_refuses_a_name_it_does_not_hold_and_a_client_with_no_name() 
     );
     running.shutdown().await.unwrap();
 }
+
+// ---- the contract gaps closed in slice 4 (live read-back, TLS events) ----
+
+fn leaf_der_of(pem: &str) -> Vec<u8> {
+    x509_parser::pem::Pem::iter_from_buffer(pem.as_bytes())
+        .next()
+        .unwrap()
+        .unwrap()
+        .contents
+}
+
+#[tokio::test]
+async fn read_back_reports_what_the_listener_really_serves() {
+    let f = fixture();
+    let ca = FakeCa::new();
+    let running = site(&f, ca.clone()).start().await.unwrap();
+    let certs = running.certificates().unwrap();
+
+    let served = running.served_certificate("localhost").await.unwrap();
+    assert_eq!(
+        served.leaf_der,
+        leaf_der_of(&ca.latest()),
+        "the served leaf is not the issued one"
+    );
+    assert_eq!(served.not_after, certs.status().cert.unwrap().not_after);
+
+    // After a renewal the read-back shows the NEW leaf: it reads the live listener, not our records.
+    let before = served.leaf_der;
+    certs.renew_now().await.unwrap();
+    let after = running.served_certificate("localhost").await.unwrap();
+    assert_ne!(
+        after.leaf_der, before,
+        "the renewed certificate is not what is served"
+    );
+    assert_eq!(after.leaf_der, leaf_der_of(&ca.latest()));
+
+    // A name the site does not hold is refused by the listener, and a site without TLS has nothing to read.
+    assert!(running.served_certificate("other.test").await.is_err());
+    running.shutdown().await.unwrap();
+    let plain = Site::new("x")
+        .files(&f.root)
+        .bind("127.0.0.1:0")
+        .start()
+        .await
+        .unwrap();
+    assert!(
+        plain
+            .served_certificate("x")
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("not serving HTTPS")
+    );
+}
+
+#[tokio::test]
+async fn tls_events_report_refusals_and_a_renewal_taking_effect() {
+    use webservant::{RefusalReason, TlsEvent};
+    let f = fixture();
+    let ca = FakeCa::new();
+    let events: Arc<Mutex<Vec<TlsEvent>>> = Arc::default();
+    let sink = Arc::clone(&events);
+    let running = site(&f, ca.clone())
+        .on_tls_event(move |e| sink.lock().unwrap().push(e.clone()))
+        .start()
+        .await
+        .unwrap();
+    let wait_for = |pred: &dyn Fn(&[TlsEvent]) -> bool| {
+        let events = Arc::clone(&events);
+        pred(&events.lock().unwrap())
+    };
+
+    assert!(!server_accepts(running.addr(), Some("other.test")).await);
+    for _ in 0..40 {
+        if wait_for(&|ev| {
+            ev.iter().any(|e| {
+                matches!(
+                    e,
+                    TlsEvent::HandshakeRefused {
+                        reason: RefusalReason::UnknownName,
+                        ..
+                    }
+                )
+            })
+        }) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(
+        wait_for(&|ev| ev.iter().any(|e| matches!(
+            e,
+            TlsEvent::HandshakeRefused {
+                reason: RefusalReason::UnknownName,
+                ..
+            }
+        ))),
+        "no refusal event: {:?}",
+        events.lock().unwrap()
+    );
+
+    // The first certificate served for a name is not "changed"; the renewed one is.
+    assert!(server_accepts(running.addr(), Some("localhost")).await);
+    running.certificates().unwrap().renew_now().await.unwrap();
+    assert!(server_accepts(running.addr(), Some("localhost")).await);
+    for _ in 0..40 {
+        if wait_for(&|ev| {
+            ev.iter()
+                .any(|e| matches!(e, TlsEvent::CertificateChanged { .. }))
+        }) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let changed = events
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|e| matches!(e, TlsEvent::CertificateChanged { .. }))
+        .count();
+    assert_eq!(changed, 1, "{:?}", events.lock().unwrap());
+    running.shutdown().await.unwrap();
+}

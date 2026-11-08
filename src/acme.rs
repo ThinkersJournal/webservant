@@ -23,13 +23,13 @@ pub const LETS_ENCRYPT_PRODUCTION: &str = "https://acme-v02.api.letsencrypt.org/
 /// The Let's Encrypt staging directory: certificates it issues are not trusted by browsers, and its limits are generous. The documented first run.
 pub const LETS_ENCRYPT_STAGING: &str = "https://acme-staging-v02.api.letsencrypt.org/directory";
 
-/// Which challenge to answer. HTTP-01 needs port 80 reachable from the internet; TLS-ALPN-01 needs port 443 and cannot issue wildcards.
+/// Which challenge to answer. Only HTTP-01 exists in this version: it needs port 80 reachable from the internet. (TLS-ALPN-01 and DNS-01 are
+/// deliberately not offered; see `docs/PATENT-SWEEP.md` for what must happen before they are.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ChallengeKind {
     /// Answer on port 80 (`/.well-known/acme-challenge/<token>`).
     Http01,
-    /// Answer on port 443 (ALPN `acme-tls/1`).
-    TlsAlpn01,
 }
 
 /// A certificate request failed. The text says which step and what to do.
@@ -74,7 +74,6 @@ pub trait AcmeClient: Send + Sync + 'static {
 #[derive(Default)]
 pub struct Challenges {
     http: Mutex<HashMap<String, String>>,
-    alpn: Mutex<HashMap<String, Arc<ServerCert>>>,
 }
 
 impl fmt::Debug for Challenges {
@@ -96,14 +95,6 @@ impl Challenges {
     pub fn clear_http(&self, token: &str) {
         lock(&self.http).remove(token);
     }
-    /// Present this validation certificate for `name` on ALPN `acme-tls/1`.
-    pub fn put_alpn(&self, name: &str, cert: ServerCert) {
-        lock(&self.alpn).insert(name.to_ascii_lowercase(), Arc::new(cert));
-    }
-    /// Stop presenting a validation certificate for `name`.
-    pub fn clear_alpn(&self, name: &str) {
-        lock(&self.alpn).remove(&name.to_ascii_lowercase());
-    }
 }
 
 /// HTTPAnt asks this for an HTTP-01 token.
@@ -117,19 +108,17 @@ impl ChallengeResponder for HttpResponder {
     }
 }
 
-/// HTTPAnt's certificate source: the issued certificate for the names we hold, the validation certificate while a TLS-ALPN-01 check is pending.
+/// HTTPAnt's certificate source: the issued certificate for the names we hold.
 /// A name we do not hold, and a client that sends no name, are refused: never another site's certificate.
 #[derive(Clone)]
 pub(crate) struct AcmeCerts {
     served: Arc<RwLock<HashMap<String, Arc<ServerCert>>>>,
-    challenges: Arc<Challenges>,
 }
 
 impl AcmeCerts {
-    fn new(challenges: Arc<Challenges>) -> Self {
+    fn new() -> Self {
         Self {
             served: Arc::default(),
-            challenges,
         }
     }
     fn install(&self, names: &[String], cert: ServerCert) {
@@ -155,18 +144,6 @@ impl CertSource for AcmeCerts {
                 .cloned()
         });
         Box::pin(async move { Ok(found) })
-    }
-
-    fn acme_tls_cert<'a>(
-        &'a self,
-        server_name: Option<&'a str>,
-    ) -> BoxFuture<'a, Option<Arc<ServerCert>>> {
-        let found = server_name.and_then(|n| {
-            lock(&self.challenges.alpn)
-                .get(&n.to_ascii_lowercase())
-                .cloned()
-        });
-        Box::pin(async move { found })
     }
 }
 
@@ -399,10 +376,7 @@ impl InstantAcme {
             .new_order(&NewOrder::new(&ids))
             .await
             .map_err(api("new order"))?;
-        let wanted = match kind {
-            ChallengeKind::Http01 => ChallengeType::Http01,
-            ChallengeKind::TlsAlpn01 => ChallengeType::TlsAlpn01,
-        };
+        let ChallengeKind::Http01 = kind;
         {
             let mut auths = order.authorizations();
             while let Some(next) = auths.next().await {
@@ -416,34 +390,22 @@ impl InstantAcme {
                         )));
                     }
                 }
-                let mut chal = authz.challenge(wanted.clone()).ok_or_else(|| {
-                    AcmeError(format!(
-                        "the certificate authority did not offer {kind:?} for this name. Try the other challenge kind, or check the name is a plain host name (wildcards need DNS, which is not supported yet)."
-                    ))
+                let mut chal = authz.challenge(ChallengeType::Http01).ok_or_else(|| {
+                    AcmeError("the certificate authority did not offer HTTP-01 for this name. Check that the name is a plain host name (wildcards need DNS, which is not supported).".to_owned())
                 })?;
-                let name = chal.identifier().to_string();
                 let ka = chal.key_authorization();
-                match kind {
-                    ChallengeKind::Http01 => {
-                        let token = chal.token.clone();
-                        challenges.put_http(&token, ka.as_str());
-                        cleanup.push(Cleanup::Http(token));
-                    }
-                    ChallengeKind::TlsAlpn01 => {
-                        let cert = alpn_cert(&name, ka.digest().as_ref())?;
-                        challenges.put_alpn(&name, cert);
-                        cleanup.push(Cleanup::Alpn(name));
-                    }
-                }
+                let token = chal.token.clone();
+                challenges.put_http(&token, ka.as_str());
+                cleanup.push(Cleanup::Http(token));
                 chal.set_ready().await.map_err(api("challenge ready"))?;
             }
         }
         let status = order
             .poll_ready(&RetryPolicy::default().timeout(Duration::from_secs(90)))
             .await
-            .map_err(|e| self.validation_failed(e, kind))?;
+            .map_err(|e| self.validation_failed(e))?;
         if status != OrderStatus::Ready {
-            return Err(self.validation_failed(format!("order is {status:?}"), kind));
+            return Err(self.validation_failed(format!("order is {status:?}")));
         }
         let key_pem = order.finalize().await.map_err(api("finalize"))?;
         let chain_pem = order
@@ -453,38 +415,15 @@ impl InstantAcme {
         Ok(Issued { chain_pem, key_pem })
     }
 
-    fn validation_failed(&self, why: impl fmt::Display, kind: ChallengeKind) -> AcmeError {
-        let port = match kind {
-            ChallengeKind::Http01 => "80 (HTTP-01 needs port 80 reachable from the internet)",
-            ChallengeKind::TlsAlpn01 => {
-                "443 (TLS-ALPN-01 needs port 443 reachable from the internet)"
-            }
-        };
+    fn validation_failed(&self, why: impl fmt::Display) -> AcmeError {
         AcmeError(format!(
-            "the certificate authority could not validate the name: {why}. Check that the name's DNS points at this machine and that port {port}. Try `--staging` first to avoid rate limits while you fix it."
+            "the certificate authority could not validate the name: {why}. Check that the name's DNS points at this machine and that port 80 is reachable from the internet (HTTP-01 needs it). Try `--staging` first to avoid rate limits while you fix it."
         ))
     }
 }
 
 enum Cleanup {
     Http(String),
-    Alpn(String),
-}
-
-fn alpn_cert(name: &str, digest: &[u8]) -> Result<ServerCert, AcmeError> {
-    let bad = |e: rcgen::Error| {
-        AcmeError(format!(
-            "cannot build the TLS-ALPN-01 validation certificate: {e}"
-        ))
-    };
-    let mut params = rcgen::CertificateParams::new(vec![name.to_owned()]).map_err(bad)?;
-    params
-        .custom_extensions
-        .push(rcgen::CustomExtension::new_acme_identifier(digest));
-    let key = rcgen::KeyPair::generate().map_err(bad)?;
-    let cert = params.self_signed(&key).map_err(bad)?;
-    ServerCert::from_pem(cert.pem().as_bytes(), key.serialize_pem().as_bytes())
-        .map_err(|e| AcmeError(format!("the validation certificate is unusable: {e}")))
 }
 
 impl AcmeClient for InstantAcme {
@@ -500,7 +439,6 @@ impl AcmeClient for InstantAcme {
             for c in cleanup {
                 match c {
                     Cleanup::Http(t) => challenges.clear_http(&t),
-                    Cleanup::Alpn(n) => challenges.clear_alpn(&n),
                 }
             }
             result
@@ -578,7 +516,7 @@ impl Core {
             sink,
             check_every,
         } = p;
-        let certs = AcmeCerts::new(Arc::clone(&challenges));
+        let certs = AcmeCerts::new();
         let state = Mutex::new(CertificateStatus {
             names: names.clone(),
             cert: None,

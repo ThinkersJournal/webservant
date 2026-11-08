@@ -5,14 +5,13 @@ Current state only; history is in git. Written 2026-11-08 by the lane.
 ## Why (CireSnave 2026-10-28, ROADMAP.md): build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published.
 
 ## State
-- Merged: #1 design, #2 slice 1 (0.1.0), #3 slice 2 ACME HTTP-01 (0.2.0). PM rulings: the patent sweep (row 5) and a Let's Encrypt STAGING run (needs CireSnave's public name + port 80; the PM asked him) must be done before the first PUBLISH; nothing touches Let's Encrypt production before a staging run is recorded in a PR. HTTPAnt acmeIdentifier fix is with the HTTPAnt lane (TLS-ALPN-01 waits on it).
-- Branch slice3-proxy in C:\Projects\webservant-wt-lane: ROADMAP row 3 built (src/proxy.rs, `Site::proxy`, CLI --proxy). Version 0.2.1 is a PROPOSAL; PM allocates. 9 integration + 3 unit proxy tests; mutants caught: forwarding headers, hop-by-hop, Connection-named, upgrade. Survivors, stated: the dot-segment check and the prefix-boundary check are second layers behind HTTPAnt's router (unit tests only).
-- NOT done in row 3: WebSocket upgrade (501), per-route timeouts/body limit, HTTP/2 upstream, uncommon methods.
-- #4 merged (0.2.1). PR #5 (branch docs-consumer-contract, 0.2.2 proposed): docs/CONSUMER-CONTRACT.md (row 4, unreviewed: WebHostAnt lane suspended) + docs/PATENT-SWEEP.md (row 5, thin by its own Limitations; PM decides if it meets the publish gate).
+- Merged: #1 design, #2 (0.1.0), #3 ACME HTTP-01 (0.2.0), #4 proxy (0.2.1), #5 consumer contract + patent sweep (0.2.2). PM: whether the thin sweep meets the first-publish bar is CireSnave's (board 402); a Let's Encrypt STAGING run is also needed before publish (CireSnave's public name + port 80). Keep OUT of the first version: on-demand issuance, DNS-01, TLS-ALPN-01, WebSocket (each needs a re-sweep first).
+- Branch slice4-contract-gaps (0.3.0 proposed, breaking: ALPN code removed): TLS-ALPN-01 code removed; C6 `RunningSite::served_certificate`; C5 `Site::on_tls_event`; C11 `shutdown_signal()` + SIGTERM. Tests: 2 new in acme_fake.rs (mutant on the event sink caught), tests/signal.rs is unix-only and has NOT run locally (Windows): its first run is Linux CI, watch it.
+- Remaining contract gaps: C10 settings struct (serde, for ConfigurAnt), C2 check_reachable(), C1 add a name to a running site (only if asked), Windows ACL on the store, 504/timeouts as settings, proxy at "/" next to files.
 - Untracked `supertool` file is not ours.
 
 ## Next
-1. Watch the row-4 doc PR (CI, threads); on merge start row 5.
-2. Then the contract gaps in CONSUMER-CONTRACT.md order: C6 expose HTTPAnt's live read-back + C11 SIGTERM, C10 settings struct, C5/C2; then Windows ACL on the store; TLS-ALPN-01 once HTTPAnt's fix is published (re-sweep first).
+1. Watch the slice-4 PR (CI incl. Linux signal test, threads).
+2. Then C10 settings struct, then C2.
 
-WAIT: row-4 doc PR gate and merge | check: gh pr list --repo ThinkersJournal/webservant --state merged --head docs-consumer-contract --json number,mergedAt | wake: 2026-11-08T10:00:00Z
+WAIT: slice-4 PR gate and merge | check: gh pr list --repo ThinkersJournal/webservant --state merged --head slice4-contract-gaps --json number,mergedAt | wake: 2026-11-08T11:00:00Z
