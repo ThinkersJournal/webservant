@@ -207,16 +207,39 @@ fn now_secs() -> i64 {
 // The store
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
-/// Where the account and the certificate live. Written atomically, mode 0600 on Unix. (On Windows the default location is under the user's own
-/// profile, which only that user and administrators can read; tightening the ACL explicitly is a roadmap row.)
+/// Where the account and the certificate live (they include private keys). Files are written atomically, mode 0600 on Unix. The store
+/// directory itself is made private before the first write: mode 0700 on Unix; on Windows its inherited permissions are removed and only the
+/// current user is granted access (`icacls`), whatever the location. If that cannot be done nothing is written (a private key is never put
+/// somewhere other users can read it).
 #[derive(Debug, Clone)]
 pub(crate) struct Store {
     dir: PathBuf,
+    private: Arc<Mutex<bool>>,
 }
 
 impl Store {
     pub(crate) fn new(dir: impl Into<PathBuf>) -> Self {
-        Self { dir: dir.into() }
+        Self {
+            dir: dir.into(),
+            private: Arc::default(),
+        }
+    }
+
+    /// Create the store directory and make it private, once per store.
+    fn ensure_private(&self) -> Result<(), AcmeError> {
+        let mut done = lock(&self.private);
+        if *done {
+            return Ok(());
+        }
+        std::fs::create_dir_all(&self.dir).map_err(|e| {
+            AcmeError(format!(
+                "cannot create the store `{}`: {e}. Choose a directory you can write with `Acme::store(...)`.",
+                self.dir.display()
+            ))
+        })?;
+        restrict_dir(&self.dir)?;
+        *done = true;
+        Ok(())
     }
 
     fn account_file(&self, directory_url: &str) -> PathBuf {
@@ -252,6 +275,7 @@ impl Store {
         creds: &AccountCredentials,
     ) -> Result<(), AcmeError> {
         let bytes = serde_json::to_vec(creds).map_err(|e| AcmeError(e.to_string()))?;
+        self.ensure_private()?;
         write_private(&self.account_file(url), &bytes)
     }
 
@@ -276,12 +300,77 @@ impl Store {
         names: &[String],
         issued: &Issued,
     ) -> Result<(), AcmeError> {
+        self.ensure_private()?;
         let dir = self.cert_dir(url);
         write_private(&dir.join("key.pem"), issued.key_pem.as_bytes())?;
         write_private(&dir.join("chain.pem"), issued.chain_pem.as_bytes())?;
         // Written last: a crash before this leaves a certificate that is not used, never one for the wrong names.
         write_private(&dir.join("names.txt"), names.join("\n").as_bytes())
     }
+}
+
+#[cfg(unix)]
+fn restrict_dir(dir: &Path) -> Result<(), AcmeError> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(|e| {
+        AcmeError(format!(
+            "cannot make the store `{}` private: {e}. Choose a directory you own with `Acme::store(...)`.",
+            dir.display()
+        ))
+    })
+}
+
+/// Remove the directory's inherited permissions and grant the current user (by SID, so no name lookup) full control, recursively. Uses the
+/// system's own `whoami.exe` and `icacls.exe` by full path, not whatever is first on `PATH`.
+#[cfg(windows)]
+fn restrict_dir(dir: &Path) -> Result<(), AcmeError> {
+    use std::process::Command;
+    let fail = |why: String| {
+        AcmeError(format!(
+            "cannot make the store `{}` private: {why}. Choose a directory only you can use with `Acme::store(...)`, or fix its permissions yourself.",
+            dir.display()
+        ))
+    };
+    let system32 = std::env::var_os("SystemRoot")
+        .map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from)
+        .join("System32");
+    let who = Command::new(system32.join("whoami.exe"))
+        .args(["/user", "/fo", "csv", "/nh"])
+        .output()
+        .map_err(|e| fail(format!("cannot run whoami: {e}")))?;
+    let text = String::from_utf8_lossy(&who.stdout).into_owned();
+    let sid = text
+        .trim()
+        .rsplit(',')
+        .next()
+        .map(|f| f.trim().trim_matches('"').to_owned())
+        .filter(|s| {
+            s.starts_with("S-1-")
+                && s.bytes()
+                    .all(|b| b.is_ascii_digit() || b == b'-' || b == b'S')
+        })
+        .ok_or_else(|| fail("cannot read the current user's identifier".into()))?;
+    let out = Command::new(system32.join("icacls.exe"))
+        .arg(dir)
+        .args(["/inheritance:r", "/grant:r"])
+        .arg(format!("*{sid}:(OI)(CI)F"))
+        .arg("/T")
+        .arg("/Q")
+        .output()
+        .map_err(|e| fail(format!("cannot run icacls: {e}")))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(fail(format!(
+            "icacls failed: {}",
+            String::from_utf8_lossy(&out.stdout).trim()
+        )))
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+fn restrict_dir(_dir: &Path) -> Result<(), AcmeError> {
+    Ok(())
 }
 
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), AcmeError> {

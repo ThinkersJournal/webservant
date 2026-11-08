@@ -35,8 +35,8 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   (the proof; `status()` only says what we put in service), `Site::on_tls_event` reports refused handshakes and a renewal taking effect, and
   `SIGTERM` (`systemctl stop`, `docker stop`) stops the server cleanly, as Ctrl-C does. **Do the first run with `--staging`**: production has rate limits that a DNS or port mistake
   can use up, and staging certificates are not trusted by browsers. A name that cannot get a certificate stops the start with a sentence that says
-  which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys:
-  `--acme-store DIR` to choose another).
+  which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys: made readable by you alone, mode 0700 on Unix and
+  an `icacls`-restricted ACL on Windows, before anything is written; `--acme-store DIR` to choose another).
 - **Reverse proxy.** `.proxy("/api", "http://127.0.0.1:3000")` (or `--proxy /api=http://127.0.0.1:3000`, repeatable) sends `/api/...` to your app
   with the prefix removed, next to the files. The client's `X-Forwarded-*` and `Forwarded` headers are dropped and replaced with what this server
   established, hop-by-hop headers stop here, bodies stream both ways, and an upstream that is down is a `502` (`504` on a timeout) that does not say

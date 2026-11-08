@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.4] - 2026-11-08
+
+- The ACME store directory is made private before the first write: mode 0700 on Unix; on Windows inherited permissions are removed and only the current user is granted access (`icacls`, by SID, system tools by full path). If it cannot be made private nothing is written. Version proposed; the PM allocates it at the gate.
+
 ## [0.3.3] - 2026-11-08
 
 - `configurant.toml`: WebServAnt's settings as a ConfigurAnt schema, tested with ConfigurAnt 0.6.3 (dev-dependency). An `acme` or `tls` table with nothing set now counts as absent (ConfigurAnt supplies empty ones). Version proposed; the PM allocates it at the gate.
