@@ -1,16 +1,52 @@
 # WebServAnt lane HANDOFF
 
-Current state only; history is in git. Written 2026-11-08 by the lane.
+Current state only; history is in git. Written 2026-11-08 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
+at 92ff2df, 0.4.2). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is uncommitted: commit it with the next PR.
 
-## Why (CireSnave 2026-10-28, ROADMAP.md): build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published.
+## Why (CireSnave 2026-10-28, ROADMAP.md)
+Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published and depended on as `~0.5.22`.
 
-## State
-- Merged: #1 to #12 (0.4.1: proxy at / with files first). PM: whether the thin sweep meets the first-publish bar is CireSnave's (board 402); a Let's Encrypt STAGING run is also needed before publish (`webservant check` on his VPS; needs his public name + port 80). Keep OUT of the first version: on-demand issuance, DNS-01, TLS-ALPN-01, WebSocket (each needs a re-sweep first).
-- PR #13 (slice11-quickstart, 0.4.2 proposed, PM has it in his poll): docs/QUICKSTART.md, docs/FRESH-EYES-TRIAL.md (THREE runs: Part 1 passed first try every time; Part 2 only ever READ; each run found different Part 2 gaps: 13, 12, 4 blocking; all fixed, the last round not re-tried), CLI --help/--version/did-you-mean, --acme-directory/--acme-ca-root, Pebble test of the real `webservant check` sentences, doc-command parse test, malformed --bind named at start, packaging (include list, real description).
-- Remaining: nobody has run Part 2 on a real Linux server (the PM relays CireSnave's run on his VPS: every failure he sends goes into QUICKSTART); `cargo install webservant` from crates.io untested; connect timeout untested; ConfigurAnt env/flag layers not exercised; `--config FILE` (TOML dependency); C1 add a name to a running site (only if asked); no run against Let's Encrypt staging; delete the "until the first release" block in QUICKSTART at publish.
-- Untracked `supertool` file is not ours.
+## State: everything the roadmap names is built and merged (#1 to #13, 0.4.2), nothing is published
+Built: static files (traversal/symlink/range/304 tests), HTTPS from a PEM pair, ACME HTTP-01 certificates via `instant-acme` behind our `AcmeClient`
+(fake CA + Pebble in Docker, required in Linux CI), renewal that keeps the last good certificate, private store (Unix 0700, Windows icacls), reverse
+proxy (prefix and `/` with files first, per-route timeouts, site-wide body limit), `check_reachable` / `webservant check`, `Settings` + ConfigurAnt
+schema (file layer tried with ConfigurAnt 0.6.3), live read-back, TLS events, SIGTERM, QUICKSTART, three fresh-eyes runs, patent sweep.
+
+Waiting on people, not on code:
+- **CireSnave** (via the PM): board 402, whether the thin patent sweep (`docs/PATENT-SWEEP.md`, 14 hits read, 8 queries, thin by its own
+  Limitations) meets the first-publish bar; and the Let's Encrypt STAGING run on his VPS (`webservant check`; needs his public name and port 80),
+  where the PM will ask him to follow `docs/QUICKSTART.md` Part 2 verbatim and send every failure. **Every failure he sends goes into QUICKSTART and
+  the trial record.** Nothing may touch Let's Encrypt production before a staging run is recorded in a PR.
+- **The PM**: version allocation (always: I only propose), merge, publish. The PM publishes only after the sweep decision and the staging run.
+- **HTTPAnt lane**: the fix for `ServerCert` rejecting a critical `acmeIdentifier` extension (TLS-ALPN-01 is OUT of the first version anyway).
+
+Keep OUT of the first version (each needs a patent re-sweep first): on-demand issuance, DNS-01, TLS-ALPN-01, WebSocket forwarding.
+
+## Honest gaps (do not claim more than this)
+- No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
+  touching a real CA). The last round of fixes after run 3 was not re-tried.
+- Nothing has run against Let's Encrypt, staging or production. The systemd unit and the phone-on-mobile-data step are unrun.
+- `cargo install webservant` from crates.io is untested (not published); QUICKSTART has a "until the first release" block to DELETE at publish.
+- The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
+- Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
+
+## Rules that bit here
+- Version: I propose, the PM allocates; every pushed change bumps (pre-1.0 the second number is "major"). Docs-only took 0.x.1+ too.
+- Squash-merge: rebase the next branch with `git rebase --onto origin/main <old-base-tip> <branch>`.
+- Shell quoting on this box: heredocs and python strings eat backslashes and apostrophes; write scripts with the Write tool, edit with Edit, and
+  anchor Python replacements on text without backslashes. A shell command that fails to PARSE runs none of its lines; I once recorded an edit as
+  done that had never run. Read the file back before claiming a fix.
+- CI flakes seen: cargo-deny action's docker `apk update`, and CodeRipper's gitleaks download (HTTP 504) fail the portfolio job by design when a rule
+  cannot run. Re-run only the failed jobs; read the log first.
+- Sonnet only for subagents; short messages; headers per MESSAGE-FORMATS.md. Never `gh auth switch`. An untracked file `supertool` in the worktree
+  is not ours: never add it (`git add -A . ':!supertool'`).
 
 ## Next
-1. Watch the slice-11 PR (CI, threads). Then idle (restart rule) unless the PM has more.
+1. On start: `git fetch`; `lane-restart waits`; check synapse for the PM's relay of CireSnave's results.
+2. If he sent QUICKSTART failures: fix the page, add them to docs/FRESH-EYES-TRIAL.md (as a person's run, not an agent's), PR, [READY].
+3. Otherwise idle. Do not invent work: the roadmap is done up to what needs a person.
 
-WAIT: slice-11 PR gate and merge | check: gh pr list --repo ThinkersJournal/webservant --state merged --head slice11-quickstart --json number,mergedAt | wake: 2026-11-08T18:00:00Z
+UPDATE 2026-11-08: board 402 RULED (CireSnave: "402: A"): publish the first version on our sweep once the staging run is done and httpant 0.7.1 is on
+crates.io (PM publishes it next; our `~0.5.22` dep will need bumping then, PM allocates the version). Four gated features stay out until a re-sweep.
+
+WAIT: PM relay of CireSnave's staging run and httpant 0.7.1 on crates.io | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-08T23:00:00Z
