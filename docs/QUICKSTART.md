@@ -236,5 +236,5 @@ webservant serve --files ./public --name example.org --acme you@example.org --pr
 ## What this does not do (yet)
 
 Wildcard certificates, getting certificates on demand for names you did not list, forwarding WebSocket connections, directory listings, logging in
-visitors, compression. The list and the reasons are in the [README](../README.md) and [ROADMAP](../ROADMAP.md). Nothing has been run against Let's
+visitors, compression. The list and the reasons are in the [README](https://github.com/ThinkersJournal/webservant/blob/main/README.md) and [ROADMAP](https://github.com/ThinkersJournal/webservant/blob/main/ROADMAP.md). Nothing has been run against Let's
 Encrypt's practice service from this project's own machines yet: step 6 is exactly that run, which is why it comes first.

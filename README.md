@@ -9,7 +9,7 @@ async fn main() -> webservant::Result<()> {
 }
 ```
 
-**New here? Follow [docs/QUICKSTART.md](docs/QUICKSTART.md)**: a page on your screen in five minutes, then a real `https://` site, tested first.
+**New here? Follow [docs/QUICKSTART.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/QUICKSTART.md)**: a page on your screen in five minutes, then a real `https://` site, tested first.
 
 That serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
 The same thing without writing code:
@@ -19,7 +19,7 @@ cargo install webservant
 webservant serve --files ./public
 ```
 
-[`examples/hello.rs`](examples/hello.rs) is a version that stops by itself: it serves a file, fetches it and checks it. CI runs it, so a run that
+[`examples/hello.rs`](https://github.com/ThinkersJournal/webservant/blob/main/examples/hello.rs) is a version that stops by itself: it serves a file, fetches it and checks it. CI runs it, so a run that
 exits with status 0 worked. Add it to your project with `cargo add webservant` and `cargo add tokio --features macros,rt-multi-thread`.
 
 ## What this release does
@@ -61,7 +61,7 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
 ## What it does not do yet
 
 The TLS-ALPN-01 and DNS-01 challenges (and so wildcard certificates), issuing a certificate on demand for a name nobody configured, WebSocket forwarding (each of these needs a new patent re-sweep first), compression, directory listings and anything for visitors to sign in with are not in this release.
-The plan and the reasons are in [ROADMAP.md](ROADMAP.md) and [docs/DESIGN.md](docs/DESIGN.md).
+The plan and the reasons are in [ROADMAP.md](https://github.com/ThinkersJournal/webservant/blob/main/ROADMAP.md) and [docs/DESIGN.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/DESIGN.md).
 
 ## Status
 

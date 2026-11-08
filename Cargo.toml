@@ -2,10 +2,14 @@
 name = "webservant"
 version = "0.4.2"
 edition = "2024"
-description = "Reserved name: a web server program that works with any Rust web library (built on HTTPAnt). Placeholder, no functionality yet."
+description = "A web server program and library: static files, a reverse proxy and automatic HTTPS certificates (ACME), on the Rust web library you choose (built on HTTPAnt)"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ThinkersJournal/webservant"
 readme = "README.md"
+keywords = ["web-server", "https", "acme", "static-files", "reverse-proxy"]
+categories = ["web-programming::http-server", "network-programming"]
+# Only what a user needs; the tests, project notes, CI files and the hand-off are not shipped.
+include = ["src/**", "examples/**", "docs/QUICKSTART.md", "README.md", "CHANGELOG.md", "LICENSE-MIT", "LICENSE-APACHE", "Cargo.toml"]
 
 [dependencies]
 bytes = "1.12.1"
