@@ -35,6 +35,7 @@ pub use acme::{
     Issued,
 };
 pub use error::{Error, Result};
+pub use httpant::server::{RefusalReason, ServedCert, TlsEvent};
 
 /// The address used when you do not choose one: this machine only.
 pub const DEFAULT_BIND: &str = "127.0.0.1:8080";
@@ -138,6 +139,7 @@ pub struct Site {
     tls: Option<(PathBuf, PathBuf)>,
     acme: Option<Acme>,
     proxies: Vec<(String, String)>,
+    tls_events: Option<TlsSink>,
     adapter: Option<String>,
     dotfiles: bool,
 }
@@ -153,6 +155,7 @@ impl Site {
             tls: None,
             acme: None,
             proxies: Vec::new(),
+            tls_events: None,
             adapter: None,
             dotfiles: false,
         }
@@ -195,6 +198,14 @@ impl Site {
     /// release; an upstream that is down is a `502` (`504` on a timeout) that does not say where it is.
     pub fn proxy(mut self, prefix: impl Into<String>, upstream: impl Into<String>) -> Self {
         self.proxies.push((prefix.into(), upstream.into()));
+        self
+    }
+
+    /// Receive TLS events from the HTTPS listener: a handshake refused (and why), and a certificate that is not the one served before for a
+    /// name (a renewal taking effect). They hold names and serial numbers, never key material. The function runs on the connection's task, so it
+    /// must not block.
+    pub fn on_tls_event(mut self, f: impl Fn(&TlsEvent) + Send + Sync + 'static) -> Self {
+        self.tls_events = Some(TlsSink(Arc::new(f)));
         self
     }
 
@@ -270,10 +281,11 @@ impl Site {
             server = server.get("/", handler.clone()).get("/*rest", handler);
         }
 
+        let tls_sink = self.tls_events.clone();
         let Some(acme) = self.acme else {
             let tls = self.tls.is_some();
             if let Some((cert, key)) = &self.tls {
-                server = server.tls(TlsAcceptor::new(FixedCert::new(load_pem(cert, key)?)));
+                server = server.tls(acceptor(&tls_sink, FixedCert::new(load_pem(cert, key)?)));
             }
             let bind = self.bind.as_deref().unwrap_or(DEFAULT_BIND);
             let running = server.bind(bind).await?;
@@ -313,7 +325,7 @@ impl Site {
             check_every: acme.check_every,
         });
         let https = server
-            .tls(TlsAcceptor::new(core.certs()))
+            .tls(acceptor(&tls_sink, core.certs()))
             .bind(self.bind.as_deref().unwrap_or("0.0.0.0:443"))
             .await?;
         let http = match plain_server
@@ -344,8 +356,71 @@ impl Site {
     /// Start serving and run until Ctrl-C, then finish the requests in flight.
     pub async fn serve(self) -> Result<()> {
         let site = self.start().await?;
-        let _ = tokio::signal::ctrl_c().await;
+        shutdown_signal().await;
         site.shutdown().await
+    }
+}
+
+#[derive(Clone)]
+struct TlsSink(Arc<dyn Fn(&TlsEvent) + Send + Sync>);
+
+impl std::fmt::Debug for TlsSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TlsSink")
+    }
+}
+
+impl httpant::server::TlsAudit for TlsSink {
+    fn event(&self, event: &TlsEvent) {
+        (self.0)(event);
+    }
+}
+
+fn acceptor(sink: &Option<TlsSink>, source: impl httpant::server::CertSource) -> TlsAcceptor {
+    let acceptor = TlsAcceptor::new(source);
+    match sink {
+        Some(s) => acceptor.audit(s.clone()),
+        None => acceptor,
+    }
+}
+
+/// Completes when the process is asked to stop: Ctrl-C everywhere, and also `SIGTERM` on Unix (what `systemctl stop` and `docker stop` send) or
+/// console close and system shutdown on Windows. A program that serves with [`Site::start`] can await this itself.
+pub async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        match signal(SignalKind::terminate()) {
+            Ok(mut term) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = term.recv() => {}
+                }
+            }
+            Err(_) => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        use tokio::signal::windows::{ctrl_close, ctrl_shutdown};
+        match (ctrl_close(), ctrl_shutdown()) {
+            (Ok(mut close), Ok(mut shutdown)) => {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = close.recv() => {}
+                    _ = shutdown.recv() => {}
+                }
+            }
+            _ => {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
     }
 }
 
@@ -434,6 +509,29 @@ impl RunningSite {
     /// The certificate handle, when the site has automatic certificates.
     pub fn certificates(&self) -> Option<Certificates> {
         self.acme.as_ref().map(|(c, _)| Certificates(Arc::clone(c)))
+    }
+
+    /// What the HTTPS listener **actually presents** for `server_name`, read back over a real handshake (nothing is sent after it, and the
+    /// certificate is not validated: this reports what is served, including an expired or self-signed certificate). Unlike
+    /// [`Certificates::status`], which says what we put in service, this is the proof. A name the site does not hold is refused by the
+    /// listener, so this returns an error for it.
+    pub async fn served_certificate(&self, server_name: &str) -> Result<ServedCert> {
+        if !self.tls {
+            return Err(Error::ReadBack(
+                "this site is not serving HTTPS, so there is no certificate to read back".into(),
+            ));
+        }
+        let mut addr = self.addr();
+        if addr.ip().is_unspecified() {
+            addr.set_ip(if addr.is_ipv4() {
+                std::net::Ipv4Addr::LOCALHOST.into()
+            } else {
+                std::net::Ipv6Addr::LOCALHOST.into()
+            });
+        }
+        httpant::server::read_back(addr, server_name, Duration::from_secs(10))
+            .await
+            .map_err(|e| Error::ReadBack(e.to_string()))
     }
 
     /// Stop accepting and wait for requests in flight (HTTPAnt's grace period applies).

@@ -27,6 +27,8 @@ pub enum Error {
     NoStore,
     /// A proxy route is not usable.
     Proxy { what: String, reason: String },
+    /// Reading back the served certificate failed.
+    ReadBack(String),
     /// The server (HTTPAnt) failed: usually the address is taken or not allowed.
     Server(httpant::Error),
 }
@@ -67,6 +69,10 @@ impl fmt::Display for Error {
             Self::Proxy { what, reason } => write!(
                 f,
                 "cannot proxy `{what}`: {reason}. Write it as `.proxy(\"/api\", \"http://127.0.0.1:3000\")`."
+            ),
+            Self::ReadBack(why) => write!(
+                f,
+                "could not read back the served certificate: {why}. Check that the name is one the site holds and that the HTTPS listener is up."
             ),
             Self::Server(e) => write!(
                 f,

@@ -111,7 +111,7 @@ async fn main() -> ExitCode {
         }
     };
     println!("serving {}  (Ctrl-C to stop)", running.url());
-    let _ = tokio::signal::ctrl_c().await;
+    webservant::shutdown_signal().await;
     match running.shutdown().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
