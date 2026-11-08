@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2] - 2026-11-08
+
+- `Site::check_reachable()` and `Reachability`; `webservant check`: one real issuance with a throwaway store (production replaced by staging), reporting which step failed. Version proposed; the PM allocates it at the gate.
+
 ## [0.3.1] - 2026-11-08
 
 - `Settings`, `TlsFiles`, `AcmeSettings`, `ProxyRoute` and `Site::from_settings`: the whole configuration as serde data (unknown keys refused). The command line now goes through it. Version proposed; the PM allocates it at the gate.

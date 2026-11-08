@@ -22,7 +22,7 @@ let certs = site.certificates().unwrap();                // status(), renew_now(
 | # | WebHostAnt need (source) | State | Gap, stated plainly |
 |---|---|---|---|
 | C1 | Certificate for a list of names; `ensure_certificate(names, challenge)`, `status()`, `renew_now()`, an event stream (DESIGN 5.3) | `status()` and `renew_now()` built; names fixed at start (`Site::new` + `Acme::also_name`) | No way to add a name to a running site (`ensure` for new names); events are a callback (`Acme::on_event`), not a stream |
-| C2 | A staging switch and one test issuance that answers "is port 80/443 reachable" (DESIGN 5.4) | `.staging()` built | `check_reachable()` is **not built**; the only reachability test today is starting with `.staging()` and reading the error |
+| C2 | A staging switch and one test issuance that answers "is port 80/443 reachable" (DESIGN 5.4) | **Built (0.3.2):** `.staging()` and `Site::check_reachable()` / `webservant check`: one real issuance with a throwaway store, production replaced by staging, returns a `Reachability` (issued, or a failure sentence naming the step). Tested with a fake CA and against Pebble, **including a real failed validation** | Not run against Let's Encrypt staging (needs a public name; board 402 context). It answers for HTTP-01 on port 80 only. Each call creates a new account at the authority (staging limits those per address) |
 | C3 | HTTP-01 and TLS-ALPN-01 (DESIGN 5.2) | HTTP-01 built and tested against Pebble | TLS-ALPN-01 waits on HTTPAnt (its `ServerCert` rejects the RFC 8737 validation certificate; the fix is with the HTTPAnt lane). DNS-01 is not v1 |
 | C4 | Renewal with no restart; a failed renewal keeps the current certificate (TLS-NEED-LIST 15, 16) | Built and tested (fake CA; failure keeps the old certificate being served) | The 12-hour check interval and the one-third-of-lifetime rule are not settings you can read back |
 | C5 | Events for AuditAnt: issued, renewed, renewal failed, challenge served, certificate swapped, handshake refused; no key material (TLS-NEED-LIST 23) | **Built (0.3.0):** `AcmeEvent::{Loaded, Issued, RenewalFailed}` via `Acme::on_event`, and HTTPAnt's `TlsEvent::{HandshakeRefused, CertificateChanged}` via `Site::on_tls_event` (tested: an unknown name is reported refused, a renewal taking effect is reported once) | Callbacks, not a stream; `AcmeChallengeServed` never occurs (no TLS-ALPN-01); no event for the HTTP-01 challenge being answered |
@@ -45,5 +45,5 @@ let certs = site.certificates().unwrap();                // status(), renew_now(
 
 1. ~~C6 (read-back) and C11 (SIGTERM)~~ and ~~C5 (TLS events)~~ done in 0.3.0.
 2. ~~C10 (settings struct)~~ done in 0.3.1; next is trying it with ConfigurAnt.
-3. C2 (`check_reachable()`).
+3. ~~C2 (`check_reachable()`)~~ done in 0.3.2.
 4. C1 (add a name to a running site) only if WebHostAnt shows it needs it.

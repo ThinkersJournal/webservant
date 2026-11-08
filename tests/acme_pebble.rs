@@ -160,6 +160,45 @@ async fn pebble_issues_for_http01() {
         return;
     };
     issue_and_serve(&p).await;
+    check_reachable_against_pebble(&p).await;
+}
+
+/// `check_reachable` against the real protocol: a reachable setup is reported reachable, and one whose validation port Pebble cannot reach
+/// is reported NOT reachable with a sentence about the validation (the answer the check exists to give).
+async fn check_reachable_against_pebble(p: &Pebble) {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("public");
+    fs::create_dir_all(&root).unwrap();
+    let site = |http_bind: &str| {
+        Site::new(NAME)
+            .files(&root)
+            .bind("127.0.0.1:0")
+            .http_bind(http_bind)
+            .acme(
+                Acme::new("test@example.com")
+                    .directory("https://localhost:14000/dir")
+                    .ca_root_pem_file(&p.minica_path),
+            )
+    };
+    let ok = site("0.0.0.0:5002").check_reachable().await.unwrap();
+    assert!(
+        ok.is_reachable(),
+        "reachable setup reported as failing: {:?}",
+        ok.failure
+    );
+    assert_eq!(ok.directory, "https://localhost:14000/dir");
+
+    // Nothing listens where Pebble looks (port 5002), so validation must fail, and the report must say so.
+    let bad = site("127.0.0.1:0").check_reachable().await.unwrap();
+    assert!(
+        !bad.is_reachable(),
+        "an unreachable setup was reported reachable"
+    );
+    let why = bad.failure.unwrap();
+    assert!(
+        why.contains("could not validate") && why.contains("port 80"),
+        "{why}"
+    );
 }
 
 /// A TLS handshake to 127.0.0.1:`port` with SNI `name`, verifying the server's chain against the roots in `root_pem` and its name.
