@@ -161,6 +161,57 @@ async fn pebble_issues_for_http01() {
     };
     issue_and_serve(&p).await;
     check_reachable_against_pebble(&p).await;
+    cli_check_against_pebble(&p);
+}
+
+/// The `webservant check` command line, run as a real process against Pebble. The two sentences docs/QUICKSTART.md shows a person (what success
+/// looks like, what failure looks like) are the ones asserted here, so the page cannot drift from the program.
+fn cli_check_against_pebble(p: &Pebble) {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("public");
+    fs::create_dir_all(&root).unwrap();
+    let run = |http_bind: &str| {
+        Command::new(env!("CARGO_BIN_EXE_webservant"))
+            .args([
+                "check",
+                "--name",
+                NAME,
+                "--acme",
+                "test@example.com",
+                "--acme-directory",
+                "https://localhost:14000/dir",
+                "--acme-ca-root",
+            ])
+            .arg(&p.minica_path)
+            .arg("--files")
+            .arg(&root)
+            .args(["--bind", "127.0.0.1:0", "--http-bind", http_bind])
+            .output()
+            .unwrap()
+    };
+    let ok = run("0.0.0.0:5002");
+    let out = String::from_utf8_lossy(&ok.stdout);
+    assert!(
+        ok.status.success(),
+        "{out} {}",
+        String::from_utf8_lossy(&ok.stderr)
+    );
+    assert_eq!(
+        out.trim(),
+        format!(
+            "OK: https://localhost:14000/dir issued a certificate for {NAME}. Nothing was kept."
+        )
+    );
+
+    let bad = run("127.0.0.1:0");
+    let err = String::from_utf8_lossy(&bad.stderr);
+    assert_eq!(bad.status.code(), Some(1), "{err}");
+    assert!(
+        err.starts_with("NOT REACHABLE (https://localhost:14000/dir): ")
+            && err.contains("could not validate")
+            && err.contains("port 80 is reachable from the internet"),
+        "{err}"
+    );
 }
 
 /// `check_reachable` against the real protocol: a reachable setup is reported reachable, and one whose validation port Pebble cannot reach

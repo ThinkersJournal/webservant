@@ -9,6 +9,8 @@ async fn main() -> webservant::Result<()> {
 }
 ```
 
+**New here? Follow [docs/QUICKSTART.md](docs/QUICKSTART.md)**: a page on your screen in five minutes, then a real `https://` site, tested first.
+
 That serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
 The same thing without writing code:
 

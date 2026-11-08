@@ -4,7 +4,7 @@
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles] [--max-body BYTES]\n\
-automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
+automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR] [--acme-directory URL] [--acme-ca-root PEMFILE]\n\
 forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
 will automatic HTTPS work here? (one staging issuance, nothing kept): webservant check --name HOST --acme you@example.org --files DIR\n\
 example: webservant serve --files ./public\n\
@@ -25,6 +25,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         ("localhost".to_owned(), None, None, None, None, false);
     let mut proxies: Vec<(String, String)> = Vec::new();
     let mut max_body: Option<u64> = None;
+    let (mut directory, mut ca_root): (Option<String>, Option<String>) = (None, None);
     let (mut acme, mut staging, mut store, mut http_bind, mut also) =
         (None, false, None, None, Vec::new());
     while let Some(flag) = it.next() {
@@ -57,6 +58,8 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             }
             "--acme" => acme = Some(value("--acme")?),
             "--staging" => staging = true,
+            "--acme-directory" => directory = Some(value("--acme-directory")?),
+            "--acme-ca-root" => ca_root = Some(value("--acme-ca-root")?),
             "--acme-store" => store = Some(value("--acme-store")?),
             "--http-bind" => http_bind = Some(value("--http-bind")?),
             "--also-name" => also.push(value("--also-name")?),
@@ -67,9 +70,15 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             }
         }
     }
-    if acme.is_none() && (staging || store.is_some() || !also.is_empty()) {
+    if acme.is_none()
+        && (staging
+            || store.is_some()
+            || !also.is_empty()
+            || directory.is_some()
+            || ca_root.is_some())
+    {
         return Err(format!(
-            "`--staging`, `--acme-store` and `--also-name` only apply with `--acme you@example.org`.
+            "`--staging`, `--acme-store`, `--also-name`, `--acme-directory` and `--acme-ca-root` only apply with `--acme you@example.org`.
 {USAGE}"
         ));
     }
@@ -93,6 +102,8 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         acme: acme.map(|contact| webservant::AcmeSettings {
             contact,
             staging,
+            directory,
+            ca_root_pem_file: ca_root.map(Into::into),
             store: store.map(Into::into),
             also_names: also,
             ..Default::default()
@@ -175,6 +186,37 @@ async fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every `webservant ...` command line shown in a code block of the README and the quickstart must be accepted by the real argument parser,
+    /// so a page cannot teach a flag that does not exist.
+    #[test]
+    fn the_documented_commands_parse() {
+        let mut seen = 0;
+        for (name, text) in [
+            ("README.md", include_str!("../README.md")),
+            ("docs/QUICKSTART.md", include_str!("../docs/QUICKSTART.md")),
+        ] {
+            let mut in_block = false;
+            for line in text.lines() {
+                if line.trim_start().starts_with("```") {
+                    in_block = !in_block;
+                    continue;
+                }
+                let line = line.trim();
+                if in_block && line.starts_with("webservant ") && !line.contains("...") {
+                    let args: Vec<String> =
+                        line.split_whitespace().skip(1).map(str::to_owned).collect();
+                    settings_from_args(args)
+                        .unwrap_or_else(|e| panic!("{name}: `{line}` does not parse: {e}"));
+                    seen += 1;
+                }
+            }
+        }
+        assert!(
+            seen >= 5,
+            "found only {seen} documented commands: the extraction broke"
+        );
+    }
 
     fn args(a: &[&str]) -> Vec<String> {
         a.iter().map(|s| (*s).to_owned()).collect()
