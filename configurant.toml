@@ -1,0 +1,104 @@
+# WebServAnt's settings as a ConfigurAnt schema. `Config::deserialize::<webservant::Settings>()` fills the Settings struct from it
+# (tests/configurant.rs). Keys under `acme` and `tls` have no defaults on purpose: with none of them set the table is absent and the
+# site has no automatic certificates, rather than an `acme` with an empty contact.
+
+project = { name = "webservant", version = "0.3", summary = "a web server on the Rust web library you choose", schema_version = 1 }
+
+[[value]]
+key = "name"
+type = "string"
+required = true
+description = "the host name the site is for, and the name its certificate is requested for"
+prompt = "What is the site's host name?"
+example = "example.org"
+
+[[value]]
+key = "files"
+type = "path"
+description = "the directory to serve"
+example = "./public"
+
+[[value]]
+key = "bind"
+type = "string"
+description = "where the HTTPS (or only) listener binds; default 127.0.0.1:8080, or 0.0.0.0:443 with automatic certificates"
+example = "0.0.0.0:443"
+
+[[value]]
+key = "http_bind"
+type = "string"
+description = "with automatic certificates, the plain-HTTP listener for the challenge and the redirect; default 0.0.0.0:80"
+
+[[value]]
+key = "adapter"
+type = "string"
+description = "the web library, by HTTPAnt's id (default hyper)"
+
+[[value]]
+key = "dotfiles"
+type = "bool"
+default = false
+description = "also serve names that start with a dot (.git, .env)"
+
+[[value]]
+key = "tls.cert"
+type = "path"
+description = "PEM certificate chain (leaf first) for a certificate you already have"
+
+[[value]]
+key = "tls.key"
+type = "path"
+description = "PEM private key for tls.cert"
+
+[[value]]
+key = "acme.contact"
+type = "string"
+description = "address the certificate authority writes to; setting any acme.* key turns automatic certificates on"
+example = "you@example.org"
+
+[[value]]
+key = "acme.staging"
+type = "bool"
+description = "use Let's Encrypt staging (do the first run this way)"
+
+[[value]]
+key = "acme.directory"
+type = "string"
+description = "another certificate authority's ACME directory URL"
+
+[[value]]
+key = "acme.ca_root_pem_file"
+type = "path"
+description = "PEM file of roots to trust when talking to the authority (a private or test CA)"
+
+[[value]]
+key = "acme.store"
+type = "path"
+description = "where the account and certificates (private keys) are kept"
+
+[[value]]
+key = "acme.also_names"
+type = "list"
+description = "more names covered by the same certificate"
+
+[[value]]
+key = "acme.check_every_secs"
+type = "int"
+min = 1
+description = "how often, in seconds, the renewal loop looks at the certificate (default twelve hours)"
+
+[[table]]
+key = "proxy"
+description = "paths forwarded to apps, checked before the files"
+
+[[table.field]]
+key = "prefix"
+type = "string"
+required = true
+description = "the path prefix, such as /api"
+
+[[table.field]]
+key = "upstream"
+type = "string"
+required = true
+description = "the app, such as http://127.0.0.1:3000"

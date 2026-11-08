@@ -28,9 +28,9 @@ pub struct Settings {
     pub adapter: Option<String>,
     /// Serve names starting with a dot.
     pub dotfiles: bool,
-    /// A certificate and key you already have.
+    /// A certificate and key you already have. A table with nothing set in it counts as absent.
     pub tls: Option<TlsFiles>,
-    /// Automatic certificates.
+    /// Automatic certificates. A table with nothing set in it counts as absent.
     pub acme: Option<AcmeSettings>,
     /// Paths forwarded to apps, checked before the files.
     pub proxy: Vec<ProxyRoute>,
@@ -105,14 +105,17 @@ impl Site {
         for r in &s.proxy {
             site = site.proxy(&r.prefix, &r.upstream);
         }
-        if let Some(t) = &s.tls {
+        // A table with nothing set in it is the same as no table: settings systems that bind by dotted key (ConfigurAnt) produce an empty
+        // `tls` and `acme` whenever the schema declares keys under them, whether or not any was set, and that must not turn automatic
+        // certificates on or demand a contact.
+        if let Some(t) = s.tls.as_ref().filter(|t| **t != TlsFiles::default()) {
             match (&t.cert, &t.key) {
                 (Some(c), Some(k)) => site = site.tls_pem_files(c, k),
                 (None, None) => {}
                 _ => return Err(Error::HalfCertificate),
             }
         }
-        if let Some(a) = &s.acme {
+        if let Some(a) = s.acme.as_ref().filter(|a| **a != AcmeSettings::default()) {
             if a.contact.trim().is_empty() {
                 return Err(bad(
                     "acme.contact",

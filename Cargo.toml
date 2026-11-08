@@ -1,6 +1,6 @@
 [package]
 name = "webservant"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2024"
 description = "Reserved name: a web server program that works with any Rust web library (built on HTTPAnt). Placeholder, no functionality yet."
 license = "MIT OR Apache-2.0"
@@ -24,6 +24,7 @@ tokio-util = { version = "0.7.20", features = ["io"] }
 x509-parser = "0.18"
 
 [dev-dependencies]
+configurant = "0.6.3"
 httpant = { version = "~0.5.22", features = ["https", "tls"] }
 rcgen = "0.14.10"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
@@ -31,6 +32,7 @@ tempfile = "3.27.0"
 time = "0.3.55"
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "io-util"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+toml = "1.2.1"
 
 [features]
 # Each web library is opt-in; hyper is always there. These switch on HTTPAnt's feature of the same name.

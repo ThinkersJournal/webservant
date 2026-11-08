@@ -78,7 +78,9 @@ fn problem(json: &str) -> String {
 fn settings_that_cannot_work_are_named() {
     assert!(problem(r#"{"name":"  "}"#).contains("`name`"));
     assert!(problem(r#"{"name":"a","tls":{"cert":"c.pem"}}"#).contains("without its key"));
-    assert!(problem(r#"{"name":"a","acme":{"contact":""}}"#).contains("acme.contact"));
+    assert!(
+        problem(r#"{"name":"a","acme":{"contact":"","staging":true}}"#).contains("acme.contact")
+    );
     assert!(problem(r#"{"name":"a","acme":{"contact":"m@a.org","staging":true,"directory":"https://x/dir"}}"#).contains("both given"));
     assert!(
         problem(r#"{"name":"a","acme":{"contact":"m@a.org","check_every_secs":0}}"#)
@@ -157,4 +159,26 @@ async fn proxy_and_dotfile_settings_reach_the_site() {
         502
     );
     site.shutdown().await.unwrap();
+}
+
+#[test]
+fn empty_acme_and_tls_tables_count_as_absent() {
+    // A settings system that binds by dotted key can hand over `"acme": {}`; that must not demand a contact or turn certificates on.
+    let s = parse(r#"{"name":"a","files":"x","acme":{},"tls":{}}"#).unwrap();
+    assert!(Site::from_settings(&s).is_ok());
+    // The control: a table with something in it is still checked.
+    let s = parse(r#"{"name":"a","files":"x","acme":{"staging":true}}"#).unwrap();
+    assert!(
+        Site::from_settings(&s)
+            .unwrap_err()
+            .to_string()
+            .contains("acme.contact")
+    );
+    let s = parse(r#"{"name":"a","files":"x","tls":{"key":"k.pem"}}"#).unwrap();
+    assert!(
+        Site::from_settings(&s)
+            .unwrap_err()
+            .to_string()
+            .contains("without its key")
+    );
 }
