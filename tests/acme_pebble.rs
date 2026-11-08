@@ -1,0 +1,191 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+//! The real ACME protocol against Pebble (Let's Encrypt's own test CA), in Docker, for HTTP-01. (TLS-ALPN-01 is not offered yet: HTTPAnt's `ServerCert` rejects the RFC 8737 validation certificate, whose `acmeIdentifier` extension is critical. See ROADMAP.) Pebble validates by connecting back
+//! to this machine as `host.docker.internal`, on its validation port 5002.
+//!
+//! No Docker means the test cannot run: it says SKIPPED, unless `WEBSERVANT_REQUIRE_PEBBLE` is set, as it is in CI, where that is a failure.
+
+use std::fs;
+use std::process::Command;
+use std::time::Duration;
+
+use httpant::Client;
+use webservant::{Acme, Site};
+
+const NAME: &str = "host.docker.internal";
+const CONTAINER: &str = "webservant-pebble-test";
+
+struct Pebble {
+    minica: String,
+    minica_path: std::path::PathBuf,
+    _dir: tempfile::TempDir,
+}
+
+impl Drop for Pebble {
+    fn drop(&mut self) {
+        let _ = Command::new("docker")
+            .args(["rm", "-f", CONTAINER])
+            .output();
+    }
+}
+
+fn docker(args: &[&str]) -> std::io::Result<std::process::Output> {
+    Command::new("docker").args(args).output()
+}
+
+async fn start_pebble() -> Option<Pebble> {
+    let required = std::env::var_os("WEBSERVANT_REQUIRE_PEBBLE").is_some();
+    let up =
+        docker(&["version", "--format", "{{.Server.Version}}"]).is_ok_and(|o| o.status.success());
+    if !up {
+        assert!(
+            !required,
+            "WEBSERVANT_REQUIRE_PEBBLE is set but Docker is not usable"
+        );
+        eprintln!("SKIPPED: Docker is not available, so the Pebble tests did not run");
+        return None;
+    }
+    let _ = docker(&["rm", "-f", CONTAINER]);
+    let run = docker(&[
+        "run",
+        "-d",
+        "--name",
+        CONTAINER,
+        "-p",
+        "14000:14000",
+        "-p",
+        "15000:15000",
+        "-e",
+        "PEBBLE_VA_NOSLEEP=1",
+        "-e",
+        "PEBBLE_WFE_NONCEREJECT=0",
+        "-e",
+        "PEBBLE_AUTHZREUSE=0",
+        "--add-host=host.docker.internal:host-gateway",
+        "ghcr.io/letsencrypt/pebble:latest",
+    ])
+    .expect("docker run");
+    assert!(
+        run.status.success(),
+        "docker run failed: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let minica_path = dir.path().join("minica.pem");
+    let cp = docker(&[
+        "cp",
+        &format!("{CONTAINER}:/test/certs/pebble.minica.pem"),
+        minica_path.to_str().unwrap(),
+    ])
+    .unwrap();
+    assert!(
+        cp.status.success(),
+        "docker cp failed: {}",
+        String::from_utf8_lossy(&cp.stderr)
+    );
+    let minica = fs::read_to_string(&minica_path).unwrap();
+    let c = Client::builder().add_root_pem(&minica).build().unwrap();
+    for _ in 0..60 {
+        if c.get("https://localhost:14000/dir").send().await.is_ok() {
+            return Some(Pebble {
+                minica,
+                minica_path,
+                _dir: dir,
+            });
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    panic!("Pebble did not answer on https://localhost:14000/dir within 30 s");
+}
+
+async fn issue_and_serve(p: &Pebble) {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("public");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("index.html"), "from pebble").unwrap();
+    let acme = Acme::new("test@example.com")
+        .directory("https://localhost:14000/dir")
+        .ca_root_pem_file(&p.minica_path)
+        .store(tmp.path().join("store"));
+    // The listener Pebble connects to must be on its validation port 5002; the HTTPS one is free.
+    let (https_bind, http_bind) = ("127.0.0.1:0", "0.0.0.0:5002");
+    let site = Site::new(NAME)
+        .files(&root)
+        .bind(https_bind)
+        .http_bind(http_bind)
+        .acme(acme)
+        .start()
+        .await
+        .unwrap_or_else(|e| panic!("start: {e}"));
+    let st = site.certificates().unwrap().status();
+    let info = st.cert.expect("a certificate in service");
+    assert!(
+        info.issuer.contains("Pebble Intermediate CA"),
+        "issuer was {}",
+        info.issuer
+    );
+
+    // Trust only Pebble's real issuance root (from its management API) and do a TLS handshake with the site, sending SNI `NAME`: the
+    // certificate chains to that root and names the host, so the whole path (order, validation, finalize, download, serving) worked. Done on
+    // loopback with a raw handshake, so it needs neither DNS for `NAME` nor a firewall opening on the machine's LAN address.
+    let mgmt = Client::builder().add_root_pem(&p.minica).build().unwrap();
+    let root_pem = mgmt
+        .get("https://localhost:15000/roots/0")
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let port = site.addr().port();
+    assert!(
+        handshake(&root_pem, NAME, port).await.is_ok(),
+        "handshake with the Pebble root"
+    );
+    // The controls: the wrong trust root fails (so the check does verify the chain), and so does another name (so it verifies the name).
+    assert!(
+        handshake(&p.minica, NAME, port).await.is_err(),
+        "minica must not verify the issued chain"
+    );
+    assert!(
+        handshake(&root_pem, "other.example", port).await.is_err(),
+        "another name must not verify"
+    );
+    site.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn pebble_issues_for_http01() {
+    let Some(p) = start_pebble().await else {
+        return;
+    };
+    issue_and_serve(&p).await;
+}
+
+/// A TLS handshake to 127.0.0.1:`port` with SNI `name`, verifying the server's chain against the roots in `root_pem` and its name.
+async fn handshake(root_pem: &str, name: &str, port: u16) -> Result<(), String> {
+    use std::sync::Arc;
+    use tokio_rustls::rustls::pki_types::pem::PemObject;
+    use tokio_rustls::rustls::pki_types::{CertificateDer, ServerName};
+    use tokio_rustls::rustls::{ClientConfig, RootCertStore};
+    let mut roots = RootCertStore::empty();
+    for cert in CertificateDer::pem_slice_iter(root_pem.as_bytes()) {
+        roots
+            .add(cert.map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    }
+    let provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
+    let config = ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .map_err(|e| e.to_string())?
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let tcp = tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .map_err(|e| e.to_string())?;
+    let server_name = ServerName::try_from(name.to_owned()).map_err(|e| e.to_string())?;
+    tokio_rustls::TlsConnector::from(Arc::new(config))
+        .connect(server_name, tcp)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}

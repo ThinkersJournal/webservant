@@ -28,15 +28,22 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   with `.dotfiles(true)` / `--dotfiles`. Windows device names (`CON`, `NUL`, `COM1`) are refused on every system.
 - **HTTPS from a certificate you already have.** `.tls_pem_files("cert.pem", "key.pem")` or `--cert cert.pem --key key.pem`, served by HTTPAnt's
   rustls acceptor (TLS 1.2 and 1.3). A certificate and key that do not belong together are refused at start, and the error never shows the key.
+- **Automatic HTTPS.** `Site::new("example.org").files("./public").acme(Acme::new("you@example.org").staging())` (or
+  `webservant serve --files ./public --name example.org --acme you@example.org --staging`) gets a certificate from Let's Encrypt, answers the
+  HTTP-01 challenge on port 80, serves HTTPS on port 443, redirects port 80 to it, and renews before expiry with no restart (a failed renewal keeps
+  the current certificate and reports the failure). **Do the first run with `--staging`**: production has rate limits that a DNS or port mistake
+  can use up, and staging certificates are not trusted by browsers. A name that cannot get a certificate stops the start with a sentence that says
+  which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys:
+  `--acme-store DIR` to choose another).
 - **The web library is a setting.** Hyper by default; after `cargo add webservant --features axum` (or actix-web, poem, salvo, warp),
   `.adapter("axum")` picks another and nothing else changes. Without the feature, the error says to turn it on.
 - **Errors say what to do next.** Every message ends with the fix.
 
 ## What it does not do yet
 
-Automatic certificates (ACME), a reverse proxy, compression, directory listings and anything for visitors to sign in with are not in this release.
+The TLS-ALPN-01 challenge (waiting on HTTPAnt: its `ServerCert` rejects the RFC 8737 validation certificate), DNS-01 and wildcards, a reverse proxy, compression, directory listings and anything for visitors to sign in with are not in this release.
 The plan and the reasons are in [ROADMAP.md](ROADMAP.md) and [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Status
 
-Pre-1.0: a breaking change bumps the second number (0.1 to 0.2). Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
+Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.

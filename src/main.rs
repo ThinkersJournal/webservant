@@ -4,6 +4,7 @@
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles]\n\
+automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
 
@@ -20,6 +21,8 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
     }
     let (mut name, mut files, mut bind, mut cert, mut key, mut dot) =
         ("localhost".to_owned(), None, None, None, None, false);
+    let (mut acme, mut staging, mut store, mut http_bind, mut also) =
+        (None, false, None, None, Vec::new());
     while let Some(flag) = it.next() {
         let mut value = |what: &str| {
             it.next()
@@ -32,6 +35,11 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
             "--cert" => cert = Some(value("--cert")?),
             "--key" => key = Some(value("--key")?),
             "--dotfiles" => dot = true,
+            "--acme" => acme = Some(value("--acme")?),
+            "--staging" => staging = true,
+            "--acme-store" => store = Some(value("--acme-store")?),
+            "--http-bind" => http_bind = Some(value("--http-bind")?),
+            "--also-name" => also.push(value("--also-name")?),
             other => {
                 return Err(format!(
                     "unknown option `{other}` (a typo is not ignored).\n{USAGE}"
@@ -45,6 +53,26 @@ fn parse(args: Vec<String>) -> Result<webservant::Site, String> {
     }
     if let Some(b) = bind {
         site = site.bind(b);
+    }
+    if let Some(b) = http_bind {
+        site = site.http_bind(b);
+    }
+    if let Some(contact) = acme {
+        let mut a = webservant::Acme::new(contact);
+        if staging {
+            a = a.staging();
+        }
+        if let Some(d) = store {
+            a = a.store(d);
+        }
+        for n in also {
+            a = a.also_name(n);
+        }
+        site = site.acme(a);
+    } else if staging || store.is_some() || !also.is_empty() {
+        return Err(format!(
+            "`--staging`, `--acme-store` and `--also-name` only apply with `--acme you@example.org`.\n{USAGE}"
+        ));
     }
     match (cert, key) {
         (Some(c), Some(k)) => site = site.tls_pem_files(c, k),

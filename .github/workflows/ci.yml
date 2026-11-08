@@ -41,6 +41,13 @@ jobs:
       - name: cargo test
         run: cargo test --locked --no-fail-fast
 
+      # The real ACME protocol against Pebble (Let's Encrypt's test CA) in Docker. On Linux a missing Docker is a FAILURE, not a skip.
+      - name: ACME against Pebble (required on Linux)
+        if: runner.os == 'Linux'
+        env:
+          WEBSERVANT_REQUIRE_PEBBLE: '1'
+        run: cargo test --locked --test acme_pebble -- --nocapture
+
       - name: run the hello example (exit 0 means it served, fetched and checked a file)
         run: cargo run --locked --example hello
 
