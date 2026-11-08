@@ -10,6 +10,55 @@ will automatic HTTPS work here? (one staging issuance, nothing kept): webservant
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
 
+/// Every option the command line knows, for "did you mean".
+const OPTIONS: [&str; 19] = [
+    "--name",
+    "--files",
+    "--bind",
+    "--cert",
+    "--key",
+    "--dotfiles",
+    "--proxy",
+    "--max-body",
+    "--acme",
+    "--staging",
+    "--acme-store",
+    "--acme-directory",
+    "--acme-ca-root",
+    "--http-bind",
+    "--also-name",
+    "--help",
+    "--version",
+    "-h",
+    "-V",
+];
+
+/// The known option closest to `typed`, if it is within two edits.
+fn suggestion(typed: &str) -> Option<&'static str> {
+    fn distance(a: &str, b: &str) -> usize {
+        let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+        let mut prev: Vec<usize> = (0..=b.len()).collect();
+        for (i, ca) in a.iter().enumerate() {
+            let mut cur = vec![i + 1];
+            for (j, cb) in b.iter().enumerate() {
+                cur.push(
+                    (prev[j] + usize::from(ca != cb))
+                        .min(prev[j + 1] + 1)
+                        .min(cur[j] + 1),
+                );
+            }
+            prev = cur;
+        }
+        prev[b.len()]
+    }
+    OPTIONS
+        .iter()
+        .map(|o| (distance(typed, o), *o))
+        .filter(|(d, _)| *d <= 2)
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, o)| o)
+}
+
 fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String> {
     let mut it = args.into_iter();
     match it.next().as_deref() {
@@ -64,8 +113,11 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             "--http-bind" => http_bind = Some(value("--http-bind")?),
             "--also-name" => also.push(value("--also-name")?),
             other => {
+                let hint = suggestion(other)
+                    .map(|s| format!(" Did you mean `{s}`?"))
+                    .unwrap_or_default();
                 return Err(format!(
-                    "unknown option `{other}` (a typo is not ignored).\n{USAGE}"
+                    "unknown option `{other}` (a typo is not ignored).{hint} Run `webservant --help` to see every option."
                 ));
             }
         }
@@ -154,6 +206,16 @@ async fn run_check(site: webservant::Site) -> ExitCode {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if matches!(args.first().map(String::as_str), Some("--version" | "-V")) {
+        println!("webservant {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+    if matches!(args.first().map(String::as_str), Some("help"))
+        || args.iter().any(|a| a == "--help" || a == "-h")
+    {
+        println!("{USAGE}");
+        return ExitCode::SUCCESS;
+    }
     let check = args.first().map(String::as_str) == Some("check");
     let site = match parse(args) {
         Ok(s) => s,
@@ -253,6 +315,23 @@ mod tests {
             (s.proxy[0].prefix.as_str(), s.proxy[0].upstream.as_str()),
             ("/api", "http://127.0.0.1:3000")
         );
+    }
+
+    #[test]
+    fn a_typo_gets_a_suggestion_and_no_wall_of_usage() {
+        let e = settings_from_args(args(&["serve", "--flies", "x"])).unwrap_err();
+        assert!(
+            e.contains("`--flies`") && e.contains("Did you mean `--files`?"),
+            "{e}"
+        );
+        assert!(
+            e.lines().count() == 1,
+            "the error must be one line, not the usage wall: {e}"
+        );
+        // Something that resembles nothing gets no guess.
+        let e = settings_from_args(args(&["serve", "--zzzzzzzz", "x"])).unwrap_err();
+        assert!(!e.contains("Did you mean"), "{e}");
+        assert_eq!(suggestion("--acm"), Some("--acme"));
     }
 
     #[test]
