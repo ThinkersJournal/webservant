@@ -18,6 +18,7 @@ run in CI, and a fresh-eyes trial of the published package that reaches a workin
 | 4 | Consumer contract for WebHostAnt local serving | **written, unreviewed** (`docs/CONSUMER-CONTRACT.md`; the WebHostAnt lane is suspended) | Twelve needs from WebHostAnt's own docs, each marked built / gap. Largest gaps: C6 live read-back not exposed, C10 no settings struct, C11 no SIGTERM, C5 audit events partial, C2 no `check_reachable()`. |
 | 5 | Patent sweep for the shipped techniques | **done for 0.2.x, awaiting PM acceptance** (`docs/PATENT-SWEEP.md`) | 14 hits read (claims from Google Patents), 8 queries, no unresolved overlap; thin by its own Limitations (one domain-limited web index, no boolean/CPC search, ACME IPR disclosures not searched). Closest live patents: Team Internet US9762571B2 (avoided because we never issue on demand from a ClientHello) and Red Hat US9215232B2/US8738901B2 (we are not CA-side and never reuse keys). Re-sweep before TLS-ALPN-01, DNS-01, on-demand issuance or WebSocket ships. |
 | 6 | Fresh-eyes trial, hub card, first-release gate table | later (needs 1 to 4) | Same method as HTTPAnt's `docs/FRESH-EYES-TRIAL.md`. |
+| 8 | Settings as data for ConfigurAnt (contract C10) | **done in this PR (0.3.1)**; not yet tried with ConfigurAnt | `Settings` + `Site::from_settings`, CLI goes through it. Next: run it with ConfigurAnt; `--config FILE` needs a TOML dependency. |
 | 7 | SecretAnt backend for the account and certificate keys | blocked on SecretAnt's interface | Until then, files with restricted permissions. |
 
 ## Not in v1

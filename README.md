@@ -41,6 +41,8 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   with the prefix removed, next to the files. The client's `X-Forwarded-*` and `Forwarded` headers are dropped and replaced with what this server
   established, hop-by-hop headers stop here, bodies stream both ways, and an upstream that is down is a `502` (`504` on a timeout) that does not say
   where it is. WebSocket upgrades are refused with `501` in this release; only the common methods are forwarded.
+- **Configuration as data.** `Settings` (serde; a misspelled key is an error that names it) and `Site::from_settings` build the same site as the
+  builder and the command line, so a settings system or a file in any serde format can drive it with no code.
 - **The web library is a setting.** Hyper by default; after `cargo add webservant --features axum` (or actix-web, poem, salvo, warp),
   `.adapter("axum")` picks another and nothing else changes. Without the feature, the error says to turn it on.
 - **Errors say what to do next.** Every message ends with the fix.
