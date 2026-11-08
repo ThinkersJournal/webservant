@@ -2,7 +2,7 @@
 
 EXPECTATIONS 6.24: *an agent given only the README must reach the result* is part of the first-release gate. Method as HTTPAnt's
 `docs/FRESH-EYES-TRIAL.md`: the packaged crate behind an offline directory source, a fresh agent that knows nothing else, its report quoted.
-**HTTPAnt's gate had three runs. This file records run 1, run 2 on the fixed pages, and run 3 if it appears below.**
+**HTTPAnt's gate had three runs. This file records run 1, run 2 on the pages as fixed after it, and run 3 on the pages as fixed after that. Run 3 still found problems (all in Part 2 and the edges of Part 1), which are fixed but have not been re-tried: the honest state is that the pages improved each time and no run has come back clean.**
 
 ## Run 1, 2026-11-08
 
@@ -107,3 +107,36 @@ biggest friction is the install story ... For Part 2, the biggest risk is the bi
 running before step 6."
 
 What run 2 does not show is the same list as run 1's: Part 2 was read, not run; one platform; an AI as the stranger.
+
+## Run 3, 2026-11-08, on the pages as fixed after run 2
+
+A third fresh `sonnet` agent, same setup and rules (sandbox rebuilt from the fixed branch, no program left installed from the previous run, forbidden
+to run `check` with real flags or `--acme`, told nothing of earlier findings). Its tasks asked it to read Part 2 line by line, commands-first, and to
+separate "would block a newcomer" from "small".
+
+**Result: Part 1 on the first attempt both ways for the third time; every Part 1 failure row matched.** `--help`, `--version`, the "did you mean"
+and the missing-value messages worked. Its answers about the ports, the test command and its success line, and what to check first per failure row
+were right again. What it found:
+
+| # | finding (run 3) | would it block? | done |
+|---|---|---|---|
+| 1 | Step 2 says to create a `www` record, but steps 6 and 7 only ever request `example.org`; the `--also-name` flag appears only in `--help`, so a `www` visitor gets a certificate error | yes | step 2 says to add `--also-name www.example.org` to steps 6 and 7 and explains why; step 6 shows the two-name `check` command and step 7 the same flag (the documented-command test parses the new line) |
+| 2 | Rust and git are not listed as needs; a fresh Ubuntu server has neither | yes | listed with the install lines (`build-essential git curl`, rustup); `nslookup` package (`dnsutils`) added in step 2 |
+| 3 | Step 8 does not say to stop the step-7 foreground server before `systemctl enable --now`; step 9's commands are foreground runs, and a service needs the unit edited | yes | both said, with the `daemon-reload` and `restart` lines |
+| 4 | The README's `cargo install webservant` has no pre-release caveat for readers who skip the quickstart | yes (if the quickstart is skipped) | one sentence added to the README |
+| 5 | "(do not run it as root)" next to `sudo setcap` reads as a contradiction | small | reworded: the program does not run as root; only the two `sudo` lines do |
+| 6 | The "last line" of the install output is not the one with the path; `~/.cargo/bin` was wrong on its machine again | small | "a line starting with `Installing` near the end"; `cp` now uses `"$(which webservant)"` instead of assuming `~/.cargo/bin` |
+| 7 | `--bind 8081`, `--bind 127.0.0.1:abc` and `--bind 127.0.0.1:99999` ended with "check that the address is free ... If the address is in use, choose another", advice that does not apply | small, but a likely first typo | the address is checked before anything starts and the error says what an address looks like (tests in `tests/settings.rs`); a table row added |
+| 8 | `--bind localhost:8082` listened on `[::1]` only; `127.0.0.1:8082` was refused | small | a table row says so |
+| 9 | PowerShell and `echo` wording made it sound harder than it is | small | softened to say which shells run the lines as written |
+| 10 | Step 5 shows no expected line; `check` and `serve` mention neither port 80 nor 443 being used; "two tests" vs "optional" | small | each stated |
+| 11 | Messages for `--files` use Rust-API wording on the command line | small | **not changed** (each message already gives the command-line form in its text) |
+| 12 | The GitHub links in the packaged README cannot be followed offline | small | **not changed**: they are absolute on purpose, so they work on crates.io |
+
+Verdict of the agent: "Part 1 works completely from the page: both routes, success lines exactly as promised, error table accurate ... Single biggest
+friction: Part 2 never covers the `www` name that step 2 tells you to create, and never says how to get Rust onto the server."
+
+**Reading the three runs together.** Part 1 passed on the first attempt every time, so that path is solid for an agent on Windows with Rust
+installed. Part 2 was never run by any agent and each reading found a different set of gaps (13, 12, then 4 that would block); the sequence suggests
+the page is converging but not that it is finished, and the real test of Part 2 is a person following it on a real Linux server with a real domain.
+Nothing in these runs touched a certificate authority.

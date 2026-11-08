@@ -20,7 +20,8 @@ mkdir public && echo "<h1>Hello</h1>" > public/index.html
 webservant serve --files ./public
 ```
 
-The Rust version prints nothing while it runs (that is success); the command prints one `serving ...` line.
+The Rust version prints nothing while it runs (that is success); the command prints one `serving ...` line. (Before the first release is published,
+`cargo install webservant` will not find it: the quickstart shows how to install from source.)
 
 To use it as a library: `cargo add webservant` and `cargo add tokio --features macros,rt-multi-thread`. The repository's CI also runs
 [`examples/hello.rs`](https://github.com/ThinkersJournal/webservant/blob/main/examples/hello.rs), a version that serves a file, fetches it, checks it
