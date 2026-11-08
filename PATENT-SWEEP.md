@@ -1,13 +1,3 @@
 # Patent sweep
 
-No code exists beyond an empty placeholder crate. A sweep (web servers, TLS certificate automation, reverse proxying) is a precondition of the first release that contains functionality. Not legal advice; no attorney exists.
-
-## Licence reads (2026-11-08)
-
-Not a patent sweep. Dependency licences read from the GitHub and crates.io APIs: `instant-acme` 0.8.5, Apache-2.0 (repo licence field; the crate's own `license` field still to be read before adoption); `rustls-acme` 0.15.4, repo Apache-2.0, not adopted; Caddy v2.11.9 Apache-2.0 and Traefik v3.7.17 MIT, not dependencies. Patents sweep for the shipped techniques remains a precondition of the first release with functionality (ROADMAP row 5).
-
-## Techniques in the tree, not yet swept (2026-11-08)
-
-Slice 1 (0.1.0, not published) contains: static file serving with conditional requests and byte ranges (RFC 9110), path confinement under a root, and TLS termination through HTTPAnt. All are long-standing and specified in public standards, but **no sweep has been done**; it is ROADMAP row 5 and a precondition of publishing.
-
-Also in the tree since 0.2.0 / 0.2.1, **not swept**: ACME certificate issuance and renewal (RFC 8555, through `instant-acme`), certificate store and renewal scheduling, and reverse-proxy header rewriting (RFC 9110 hop-by-hop handling, `X-Forwarded-*`). Standards-based and long established; no search has been done.
+The sweep is [docs/PATENT-SWEEP.md](docs/PATENT-SWEEP.md) (WebServAnt 0.2.x at `ddc8ad3`, 2026-11-08). Not legal advice. A re-sweep is required before a new family of capability ships (TLS-ALPN-01, DNS-01, on-demand issuance, WebSocket forwarding, a SecretAnt store).
