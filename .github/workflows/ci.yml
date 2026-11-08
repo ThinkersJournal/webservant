@@ -41,6 +41,9 @@ jobs:
       - name: cargo test
         run: cargo test --locked --no-fail-fast
 
+      - name: run the hello example (exit 0 means it served, fetched and checked a file)
+        run: cargo run --locked --example hello
+
       - name: cargo doc
         env:
           RUSTDOCFLAGS: -D warnings
