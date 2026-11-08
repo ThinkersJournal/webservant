@@ -20,11 +20,13 @@
 pub mod acme;
 mod error;
 mod files;
+mod proxy;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use http::Method;
 use httpant::server::{FixedCert, HttpsRedirect, ServerCert, TlsAcceptor};
 use httpant::{Request, RunningServer, Server};
 
@@ -135,6 +137,7 @@ pub struct Site {
     http_bind: Option<String>,
     tls: Option<(PathBuf, PathBuf)>,
     acme: Option<Acme>,
+    proxies: Vec<(String, String)>,
     adapter: Option<String>,
     dotfiles: bool,
 }
@@ -149,6 +152,7 @@ impl Site {
             http_bind: None,
             tls: None,
             acme: None,
+            proxies: Vec::new(),
             adapter: None,
             dotfiles: false,
         }
@@ -185,6 +189,15 @@ impl Site {
         self
     }
 
+    /// Forward requests under `prefix` (such as `/api`) to the app at `upstream` (such as `http://127.0.0.1:3000`), with the prefix removed:
+    /// `/api/users?x=1` becomes `/users?x=1` upstream. Proxy routes are checked before the files. The forwarding headers (`X-Forwarded-For`,
+    /// `-Proto`, `-Host`) are written by this server and the client's own are dropped; WebSocket upgrades are refused with `501` in this
+    /// release; an upstream that is down is a `502` (`504` on a timeout) that does not say where it is.
+    pub fn proxy(mut self, prefix: impl Into<String>, upstream: impl Into<String>) -> Self {
+        self.proxies.push((prefix.into(), upstream.into()));
+        self
+    }
+
     /// Run on this web library instead of the default (hyper): any id HTTPAnt knows and was built with.
     pub fn adapter(mut self, id: impl Into<String>) -> Self {
         self.adapter = Some(id.into());
@@ -212,23 +225,50 @@ impl Site {
     /// Start serving and return a handle. Everything that can be wrong with the settings is reported here, before anything listens; with
     /// automatic certificates this returns once a certificate is in service.
     pub async fn start(self) -> Result<RunningSite> {
-        let dir = self.files.clone().ok_or(Error::NothingToServe)?;
+        if self.files.is_none() && self.proxies.is_empty() {
+            return Err(Error::NothingToServe);
+        }
         if self.acme.is_some() && self.tls.is_some() {
             return Err(Error::TwoCertificateSources);
         }
-        let files = files::Files::new(&dir, self.dotfiles).map_err(|e| Error::FilesDir {
-            path: dir.clone(),
-            reason: e.to_string(),
-        })?;
-        let handler = move |req: Request| {
-            let files = files.clone();
-            async move { files.handle(req).await }
-        };
         let plain_server = self.server()?;
-        let mut server = self
-            .server()?
-            .get("/", handler.clone())
-            .get("/*rest", handler);
+        let mut server = self.server()?;
+        // Proxy routes first: the router takes the first route that matches, and the file catch-all matches everything.
+        for (prefix, upstream) in &self.proxies {
+            let proxy = proxy::Proxy::new(prefix, upstream)?;
+            let handler = {
+                let proxy = proxy.clone();
+                move |req: Request| {
+                    let proxy = proxy.clone();
+                    async move { proxy.handle(req).await }
+                }
+            };
+            let any = [
+                Method::GET,
+                Method::HEAD,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+            ];
+            for m in any {
+                server = server
+                    .route(m.clone(), proxy.prefix(), handler.clone())
+                    .route(m, &format!("{}/*rest", proxy.prefix()), handler.clone());
+            }
+        }
+        if let Some(dir) = &self.files {
+            let files = files::Files::new(dir, self.dotfiles).map_err(|e| Error::FilesDir {
+                path: dir.clone(),
+                reason: e.to_string(),
+            })?;
+            let handler = move |req: Request| {
+                let files = files.clone();
+                async move { files.handle(req).await }
+            };
+            server = server.get("/", handler.clone()).get("/*rest", handler);
+        }
 
         let Some(acme) = self.acme else {
             let tls = self.tls.is_some();

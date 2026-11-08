@@ -25,6 +25,8 @@ pub enum Error {
     TwoCertificateSources,
     /// No place to keep the account and certificates could be found.
     NoStore,
+    /// A proxy route is not usable.
+    Proxy { what: String, reason: String },
     /// The server (HTTPAnt) failed: usually the address is taken or not allowed.
     Server(httpant::Error),
 }
@@ -61,6 +63,10 @@ impl fmt::Display for Error {
             ),
             Self::NoStore => f.write_str(
                 "there is no default place to keep certificates on this system. Choose one with `Acme::store(\"/path\")` (or `--acme-store /path`).",
+            ),
+            Self::Proxy { what, reason } => write!(
+                f,
+                "cannot proxy `{what}`: {reason}. Write it as `.proxy(\"/api\", \"http://127.0.0.1:3000\")`."
             ),
             Self::Server(e) => write!(
                 f,
