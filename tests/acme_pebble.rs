@@ -34,8 +34,9 @@ fn docker(args: &[&str]) -> std::io::Result<std::process::Output> {
 
 async fn start_pebble() -> Option<Pebble> {
     let required = std::env::var_os("WEBSERVANT_REQUIRE_PEBBLE").is_some();
-    let up =
-        docker(&["version", "--format", "{{.Server.Version}}"]).is_ok_and(|o| o.status.success());
+    // Pebble is a Linux image: a daemon that only runs Windows containers (the Windows CI runner) cannot run it.
+    let up = docker(&["info", "--format", "{{.OSType}}"])
+        .is_ok_and(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "linux");
     if !up {
         assert!(
             !required,
