@@ -19,6 +19,12 @@ pub enum Error {
     },
     /// Only one of the certificate and key was given.
     HalfCertificate,
+    /// Getting or renewing a certificate failed.
+    Acme(crate::acme::AcmeError),
+    /// ACME and a certificate file pair were both given; choose one.
+    TwoCertificateSources,
+    /// No place to keep the account and certificates could be found.
+    NoStore,
     /// The server (HTTPAnt) failed: usually the address is taken or not allowed.
     Server(httpant::Error),
 }
@@ -48,6 +54,13 @@ impl fmt::Display for Error {
             ),
             Self::HalfCertificate => f.write_str(
                 "a certificate was given without its key, or a key without its certificate. Give both `tls_pem_files(cert, key)` or neither.",
+            ),
+            Self::Acme(e) => write!(f, "could not get a certificate: {e}"),
+            Self::TwoCertificateSources => f.write_str(
+                "both automatic certificates (`acme`) and a certificate file pair (`tls_pem_files`) were given. Use one of them.",
+            ),
+            Self::NoStore => f.write_str(
+                "there is no default place to keep certificates on this system. Choose one with `Acme::store(\"/path\")` (or `--acme-store /path`).",
             ),
             Self::Server(e) => write!(
                 f,
