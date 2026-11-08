@@ -270,6 +270,11 @@ impl Site {
         if self.files.is_none() && self.proxies.is_empty() {
             return Err(Error::NothingToServe);
         }
+        for (what, value) in [("bind", &self.bind), ("http_bind", &self.http_bind)] {
+            if let Some(v) = value {
+                check_address(what, v)?;
+            }
+        }
         if self.acme.is_some() && self.tls.is_some() {
             return Err(Error::TwoCertificateSources);
         }
@@ -556,6 +561,20 @@ pub async fn shutdown_signal() {
     {
         let _ = tokio::signal::ctrl_c().await;
     }
+}
+
+/// An address must be `host:port` with a port that fits. Without this a typo such as `8081` or `127.0.0.1:99999` reaches the socket layer and comes
+/// back as "address in use" advice that does not apply.
+fn check_address(what: &str, value: &str) -> Result<()> {
+    use std::net::ToSocketAddrs;
+    if value.parse::<std::net::SocketAddr>().is_ok()
+        || (value.contains(':') && value.to_socket_addrs().is_ok())
+    {
+        return Ok(());
+    }
+    Err(Error::Settings(format!(
+        "`{what}` is `{value}`, which is not an address: write the host, a colon and the port, for example `127.0.0.1:8080` (this computer only) or `0.0.0.0:8080` (every address), with a port from 0 to 65535."
+    )))
 }
 
 fn default_store() -> Option<PathBuf> {

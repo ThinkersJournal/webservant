@@ -4,11 +4,60 @@
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles] [--max-body BYTES]\n\
-automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR]\n\
+automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR] [--acme-directory URL] [--acme-ca-root PEMFILE]\n\
 forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
 will automatic HTTPS work here? (one staging issuance, nothing kept): webservant check --name HOST --acme you@example.org --files DIR\n\
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
+
+/// Every option the command line knows, for "did you mean".
+const OPTIONS: [&str; 19] = [
+    "--name",
+    "--files",
+    "--bind",
+    "--cert",
+    "--key",
+    "--dotfiles",
+    "--proxy",
+    "--max-body",
+    "--acme",
+    "--staging",
+    "--acme-store",
+    "--acme-directory",
+    "--acme-ca-root",
+    "--http-bind",
+    "--also-name",
+    "--help",
+    "--version",
+    "-h",
+    "-V",
+];
+
+/// The known option closest to `typed`, if it is within two edits.
+fn suggestion(typed: &str) -> Option<&'static str> {
+    fn distance(a: &str, b: &str) -> usize {
+        let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+        let mut prev: Vec<usize> = (0..=b.len()).collect();
+        for (i, ca) in a.iter().enumerate() {
+            let mut cur = vec![i + 1];
+            for (j, cb) in b.iter().enumerate() {
+                cur.push(
+                    (prev[j] + usize::from(ca != cb))
+                        .min(prev[j + 1] + 1)
+                        .min(cur[j] + 1),
+                );
+            }
+            prev = cur;
+        }
+        prev[b.len()]
+    }
+    OPTIONS
+        .iter()
+        .map(|o| (distance(typed, o), *o))
+        .filter(|(d, _)| *d <= 2)
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, o)| o)
+}
 
 fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String> {
     let mut it = args.into_iter();
@@ -25,6 +74,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         ("localhost".to_owned(), None, None, None, None, false);
     let mut proxies: Vec<(String, String)> = Vec::new();
     let mut max_body: Option<u64> = None;
+    let (mut directory, mut ca_root): (Option<String>, Option<String>) = (None, None);
     let (mut acme, mut staging, mut store, mut http_bind, mut also) =
         (None, false, None, None, Vec::new());
     while let Some(flag) = it.next() {
@@ -57,19 +107,30 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             }
             "--acme" => acme = Some(value("--acme")?),
             "--staging" => staging = true,
+            "--acme-directory" => directory = Some(value("--acme-directory")?),
+            "--acme-ca-root" => ca_root = Some(value("--acme-ca-root")?),
             "--acme-store" => store = Some(value("--acme-store")?),
             "--http-bind" => http_bind = Some(value("--http-bind")?),
             "--also-name" => also.push(value("--also-name")?),
             other => {
+                let hint = suggestion(other)
+                    .map(|s| format!(" Did you mean `{s}`?"))
+                    .unwrap_or_default();
                 return Err(format!(
-                    "unknown option `{other}` (a typo is not ignored).\n{USAGE}"
+                    "unknown option `{other}` (a typo is not ignored).{hint} Run `webservant --help` to see every option."
                 ));
             }
         }
     }
-    if acme.is_none() && (staging || store.is_some() || !also.is_empty()) {
+    if acme.is_none()
+        && (staging
+            || store.is_some()
+            || !also.is_empty()
+            || directory.is_some()
+            || ca_root.is_some())
+    {
         return Err(format!(
-            "`--staging`, `--acme-store` and `--also-name` only apply with `--acme you@example.org`.
+            "`--staging`, `--acme-store`, `--also-name`, `--acme-directory` and `--acme-ca-root` only apply with `--acme you@example.org`.
 {USAGE}"
         ));
     }
@@ -93,6 +154,8 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
         acme: acme.map(|contact| webservant::AcmeSettings {
             contact,
             staging,
+            directory,
+            ca_root_pem_file: ca_root.map(Into::into),
             store: store.map(Into::into),
             also_names: also,
             ..Default::default()
@@ -143,6 +206,16 @@ async fn run_check(site: webservant::Site) -> ExitCode {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if matches!(args.first().map(String::as_str), Some("--version" | "-V")) {
+        println!("webservant {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+    if matches!(args.first().map(String::as_str), Some("help"))
+        || args.iter().any(|a| a == "--help" || a == "-h")
+    {
+        println!("{USAGE}");
+        return ExitCode::SUCCESS;
+    }
     let check = args.first().map(String::as_str) == Some("check");
     let site = match parse(args) {
         Ok(s) => s,
@@ -175,6 +248,37 @@ async fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every `webservant ...` command line shown in a code block of the README and the quickstart must be accepted by the real argument parser,
+    /// so a page cannot teach a flag that does not exist.
+    #[test]
+    fn the_documented_commands_parse() {
+        let mut seen = 0;
+        for (name, text) in [
+            ("README.md", include_str!("../README.md")),
+            ("docs/QUICKSTART.md", include_str!("../docs/QUICKSTART.md")),
+        ] {
+            let mut in_block = false;
+            for line in text.lines() {
+                if line.trim_start().starts_with("```") {
+                    in_block = !in_block;
+                    continue;
+                }
+                let line = line.trim();
+                if in_block && line.starts_with("webservant ") && !line.contains("...") {
+                    let args: Vec<String> =
+                        line.split_whitespace().skip(1).map(str::to_owned).collect();
+                    settings_from_args(args)
+                        .unwrap_or_else(|e| panic!("{name}: `{line}` does not parse: {e}"));
+                    seen += 1;
+                }
+            }
+        }
+        assert!(
+            seen >= 5,
+            "found only {seen} documented commands: the extraction broke"
+        );
+    }
 
     fn args(a: &[&str]) -> Vec<String> {
         a.iter().map(|s| (*s).to_owned()).collect()
@@ -211,6 +315,23 @@ mod tests {
             (s.proxy[0].prefix.as_str(), s.proxy[0].upstream.as_str()),
             ("/api", "http://127.0.0.1:3000")
         );
+    }
+
+    #[test]
+    fn a_typo_gets_a_suggestion_and_no_wall_of_usage() {
+        let e = settings_from_args(args(&["serve", "--flies", "x"])).unwrap_err();
+        assert!(
+            e.contains("`--flies`") && e.contains("Did you mean `--files`?"),
+            "{e}"
+        );
+        assert!(
+            e.lines().count() == 1,
+            "the error must be one line, not the usage wall: {e}"
+        );
+        // Something that resembles nothing gets no guess.
+        let e = settings_from_args(args(&["serve", "--zzzzzzzz", "x"])).unwrap_err();
+        assert!(!e.contains("Did you mean"), "{e}");
+        assert_eq!(suggestion("--acm"), Some("--acme"));
     }
 
     #[test]

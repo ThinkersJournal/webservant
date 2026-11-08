@@ -182,3 +182,48 @@ fn empty_acme_and_tls_tables_count_as_absent() {
             .contains("without its key")
     );
 }
+
+#[tokio::test]
+async fn a_malformed_address_is_named_not_reported_as_address_in_use() {
+    let tmp = tempfile::tempdir().unwrap();
+    for bad in [
+        "8081",
+        "127.0.0.1:abc",
+        "127.0.0.1:99999",
+        "",
+        "just a name",
+    ] {
+        let e = Site::new("a")
+            .files(tmp.path())
+            .bind(bad)
+            .start()
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(
+            e.contains("`bind`")
+                && e.contains("not an address")
+                && !e.contains("address is in use"),
+            "{bad:?}: {e}"
+        );
+    }
+    let e = Site::new("a")
+        .files(tmp.path())
+        .bind("127.0.0.1:0")
+        .http_bind("80")
+        .start()
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("`http_bind`"), "{e}");
+    // The controls: an IP with a port, and a host name with a port, are fine.
+    for good in ["127.0.0.1:0", "localhost:0", "[::1]:0"] {
+        let site = Site::new("a")
+            .files(tmp.path())
+            .bind(good)
+            .start()
+            .await
+            .unwrap_or_else(|e| panic!("{good}: {e}"));
+        site.shutdown().await.unwrap();
+    }
+}

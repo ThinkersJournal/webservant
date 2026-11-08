@@ -9,18 +9,28 @@ async fn main() -> webservant::Result<()> {
 }
 ```
 
-That serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
+**New here? Follow [docs/QUICKSTART.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/QUICKSTART.md)**: a page on your screen in five minutes, then a real `https://` site, tested first.
+
+The program above serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
 The same thing without writing code:
 
 ```sh
 cargo install webservant
+mkdir public && echo "<h1>Hello</h1>" > public/index.html
 webservant serve --files ./public
 ```
 
-[`examples/hello.rs`](examples/hello.rs) is a version that stops by itself: it serves a file, fetches it and checks it. CI runs it, so a run that
-exits with status 0 worked. Add it to your project with `cargo add webservant` and `cargo add tokio --features macros,rt-multi-thread`.
+The Rust version prints nothing while it runs (that is success); the command prints one `serving ...` line. (Before the first release is published,
+`cargo install webservant` will not find it: the quickstart shows how to install from source.)
+
+To use it as a library: `cargo add webservant` and `cargo add tokio --features macros,rt-multi-thread`. The repository's CI also runs
+[`examples/hello.rs`](https://github.com/ThinkersJournal/webservant/blob/main/examples/hello.rs), a version that serves a file, fetches it, checks it
+and stops by itself, so the example cannot go stale.
 
 ## What this release does
+
+The list below is the detail; you do not need any of it to get started (the quickstart above is enough). Terms such as `ETag` or HTTP-01 are the
+standard names of the mechanisms; skip them until you need them.
 
 - **Static files.** `Content-Type`, `ETag` and `304`, `Range`, `HEAD`, `index.html` for a directory (and a redirect from `/docs` to `/docs/`).
   A path that leaves the folder is a `404`, the same as a missing file, whether it is spelled `..`, `%2e%2e%2f`, with a backslash, as a drive or
@@ -33,7 +43,7 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   HTTP-01 challenge on port 80, serves HTTPS on port 443, redirects port 80 to it, and renews before expiry with no restart (a failed renewal keeps
   the current certificate and reports the failure). `RunningSite::served_certificate(name)` reads back what the HTTPS listener really presents
   (the proof; `status()` only says what we put in service), `Site::on_tls_event` reports refused handshakes and a renewal taking effect, and
-  `SIGTERM` (`systemctl stop`, `docker stop`) stops the server cleanly, as Ctrl-C does. **Do the first run with `--staging`**: production has rate limits that a DNS or port mistake
+  `SIGTERM` (`systemctl stop`, `docker stop`) stops the server cleanly, as Ctrl-C does. **Run `webservant check` first** (it always uses staging): production has rate limits that a DNS or port mistake
   can use up, and staging certificates are not trusted by browsers. A name that cannot get a certificate stops the start with a sentence that says
   which step failed; the site never falls back to plain HTTP. The account and certificates are kept in your user data directory (private keys: made readable by you alone, mode 0700 on Unix and
   an `icacls`-restricted ACL on Windows, before anything is written; `--acme-store DIR` to choose another).
@@ -58,8 +68,8 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
 
 ## What it does not do yet
 
-The TLS-ALPN-01 and DNS-01 challenges (and so wildcard certificates), issuing a certificate on demand for a name nobody configured, WebSocket forwarding (each of these needs a new patent re-sweep first), compression, directory listings and anything for visitors to sign in with are not in this release.
-The plan and the reasons are in [ROADMAP.md](ROADMAP.md) and [docs/DESIGN.md](docs/DESIGN.md).
+The TLS-ALPN-01 and DNS-01 challenges (and so wildcard certificates), issuing a certificate on demand for a name nobody configured, WebSocket forwarding (planned, not in this release), compression, directory listings and anything for visitors to sign in with are not in this release.
+The plan and the reasons are in [ROADMAP.md](https://github.com/ThinkersJournal/webservant/blob/main/ROADMAP.md) and [docs/DESIGN.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/DESIGN.md).
 
 ## Status
 
