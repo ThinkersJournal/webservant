@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.2] - 2026-11-08
+
+- Docs only: `docs/CONSUMER-CONTRACT.md` (what WebHostAnt's local serving gets, and what it does not). Version proposed.
+
 ## [0.2.1] - 2026-11-08
 
 - Reverse proxy: `Site::proxy`, `webservant serve --proxy PREFIX=UPSTREAM`. Enables HTTPAnt's `https` client feature (https upstreams). Version proposed; the PM allocates it at the gate.
