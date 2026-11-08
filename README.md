@@ -43,6 +43,9 @@ exits with status 0 worked. Add it to your project with `cargo add webservant` a
   where it is. WebSocket upgrades are refused with `501` in this release; only the common methods are forwarded. The timeouts (connect 5 s,
   response head 60 s, quiet body 60 s) are settings per route (`proxy_with`, or `*_timeout_secs` in `Settings`), and the request body limit (2 MiB) is
   `max_body_bytes` / `--max-body`: it applies to the whole site, so raise it for an upload endpoint knowing it raises it everywhere.
+  `--proxy /=http://127.0.0.1:3000` (prefix `/` alone) makes your app answer everything else, with your files served first when they exist: a GET or
+  HEAD for a file under `--files` comes from disk, anything else (another method, no such file, a directory with no `index.html`, a dotfile) goes to
+  the app.
 - **Will it work here?** `webservant check --name example.org --acme you@example.org --files ./public` (or `Site::check_reachable()`) does one real
   issuance against Let's Encrypt **staging** with a throwaway store, keeps nothing, and tells you which step failed (for example that the certificate
   authority could not reach port 80 on this machine). Run it before the real thing.
