@@ -7,13 +7,14 @@ before it matters.
 You need Rust installed ([rustup.rs](https://rustup.rs)). You do not need to write Rust to use the command-line program, but Part 1 shows the Rust
 version too because it is three lines.
 
-> **Until the first release is published** `cargo install webservant` will not find it. Install from the source instead, and everything below is the
-> same:
+> **Until the first release is published** `cargo install webservant` will not find it. Wherever this page says `cargo install webservant`, do this
+> instead (in a folder of your choice), and then go back to the folder where you want to work (`cd ..`):
 >
 > ```sh
 > git clone https://github.com/ThinkersJournal/webservant
 > cd webservant
 > cargo install --path .
+> cd ..
 > ```
 
 The first install takes a couple of minutes while Rust compiles it. You will see a lot of "Compiling" lines; that is normal.
@@ -30,8 +31,8 @@ The first install takes a couple of minutes while Rust compiles it. You will see
    cargo install webservant
    ```
 
-   It is installed to `~/.cargo/bin` (on Windows `%USERPROFILE%\.cargo\bin`), which `rustup` puts on your PATH. If your terminal says the command is not
-   found, close it and open a new one.
+   The last line cargo prints says where the program went (normally the `bin` folder inside your cargo home, `~/.cargo/bin`, which `rustup` puts on your
+   PATH). If your terminal then says `webservant` is not found, close it and open a new one.
 
 2. Make a folder with one page in it:
 
@@ -40,7 +41,7 @@ The first install takes a couple of minutes while Rust compiles it. You will see
    echo "<h1>Hello from my site</h1>" > public/index.html
    ```
 
-   (Or make the folder `public` and the file `index.html` in it with any text editor; the file only needs the one line.)
+   (In Windows PowerShell or cmd, make the folder `public` and the file `index.html` in it with any text editor instead; the file only needs the one line.)
 
 3. Serve the folder:
 
@@ -78,7 +79,8 @@ async fn main() -> webservant::Result<()> {
 }
 ```
 
-Run `cargo run` (the first build takes a couple of minutes). **This version prints nothing when it works**: the program is simply running. Open
+Run `cargo run` (the first build takes a couple of minutes; `cargo add` printed a long list of optional features earlier, which is normal). **This
+version prints nothing of its own when it works**: after cargo's `Running ...` line the program is simply running. Open
 <http://127.0.0.1:8080/> and you see the same page; press Ctrl-C to stop. (The name `example.org` only matters later, in Part 2; in this local mode it
 does nothing.)
 
@@ -109,7 +111,8 @@ two tests before the real thing (steps 5 and 6).
 - A **computer on the internet with its own public address** (a small rented server works; a laptop at home usually does not unless you can open ports
   on your router). You can log into it and install software.
 - An **email address you can read**, for the certificate authority to write to about expiry and problems.
-- About 20 minutes.
+- A C compiler for Rust to link with. On a fresh Ubuntu server: `sudo apt install build-essential`.
+- About 20 minutes of work, plus waiting for DNS to spread (step 2).
 
 ### 2. Point the name at the computer
 
@@ -123,14 +126,16 @@ nslookup example.org
 nslookup -type=AAAA example.org
 ```
 
-The first must show your computer's public address. DNS changes can take minutes to hours to spread. **The second should show no address.** If your
+The first must show your computer's public address. DNS changes can take minutes to hours to spread. **The second should show no address** (it may say
+"No answer" or that the name does not exist for that type; that is what you want). If your
 domain has an AAAA record (an IPv6 address) that does not lead to this computer, remove it: the certificate authority may try that address and fail.
 
 ### 3. Open ports 80 and 443
 
 Both must be reachable from the internet.
 
-- On the computer's own firewall. For example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`.
+- On the computer's own firewall. For example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`. **If you turn `ufw` on, allow SSH first
+  (`sudo ufw allow 22/tcp`) or you lock yourself out of the server.**
 - In your hosting company's control panel, if it has a "firewall" or "security group" (many do and they block everything by default): allow inbound
   TCP 80 and 443.
 - At home: forward ports 80 and 443 on your router to the computer.
@@ -143,12 +148,14 @@ Only one program can use port 80 at a time. If a web server (nginx, Apache) alre
 cargo install webservant
 sudo cp ~/.cargo/bin/webservant /usr/local/bin/webservant
 sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/webservant
+cargo uninstall webservant
 mkdir public
 echo "<h1>My real site</h1>" > public/index.html
 ```
 
-The `cp` puts the program somewhere `sudo` can see it; the `setcap` line lets it use ports below 1024 without running as root (do not run it as root).
-Use `/usr/local/bin/webservant` (or just `webservant` if that is first on your PATH) from here on.
+The `cp` puts the program somewhere `sudo` can see it; the `setcap` line lets it use ports below 1024 without running as root (do not run it as root);
+`cargo uninstall` removes the first copy so that `webservant` from now on is the one with the permission. (After you upgrade WebServAnt later, repeat
+the `cargo install`, `cp` and `setcap` lines: a new copy has lost the permission.)
 
 ### 5. First quick test: can the internet reach port 80?
 
@@ -160,7 +167,7 @@ webservant serve --files ./public --bind 0.0.0.0:80
 
 Now, **from a different network**, for example your phone on mobile data (not your home wifi), open `http://example.org/` (your name). You should see
 "My real site". If you do, your DNS and port 80 are right; press Ctrl-C and go on. If you do not, fix steps 2 and 3 first; the real test (step 6) would
-fail for the same reason.
+fail for the same reason. **Either way, press Ctrl-C to stop this server before step 6**: the test needs port 80 free.
 
 ### 6. The real test (this is the important step)
 
@@ -202,7 +209,7 @@ webservant serve --files ./public --name example.org --acme you@example.org
 ```
 
 This one uses the real Let's Encrypt service, which is why you tested first. The first start takes up to a minute while it gets the certificate.
-**Success looks like this line**, and the program keeps running:
+**Success looks like this line**, and the program keeps running (`0.0.0.0` just means "every address of this computer"; you open your own name, below):
 
 ```
 serving https://0.0.0.0:443/  (Ctrl-C to stop)
@@ -238,8 +245,18 @@ address.
   WantedBy=multi-user.target
   ```
 
-  Put your site's files in `/srv/site` (it must be readable by the service), then `sudo systemctl enable --now webservant`. Because of
-  `AmbientCapabilities` the `setcap` line is not needed for the service.
+  Copy your site into place, then start it:
+
+  ```sh
+  sudo mkdir -p /srv/site
+  sudo cp -r public/. /srv/site/
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now webservant
+  ```
+
+  Because of `AmbientCapabilities` the `setcap` line is not needed for the service. The service keeps its **own** store (`/var/lib/webservant`), so it
+  orders its own certificate; do not switch back and forth between running it by hand and as a service many times, or you will use up the real
+  service's limits.
 
 ### 9. Put your own app behind it
 

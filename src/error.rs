@@ -79,7 +79,7 @@ impl fmt::Display for Error {
             ),
             Self::Server(e) => write!(
                 f,
-                "the server could not start or stopped: {e}. If the address is in use, choose another with `.bind(\"127.0.0.1:8081\")`."
+                "the server could not start or stopped: {e}. If the address is in use, choose another with `.bind(\"127.0.0.1:8081\")` (on the command line, `--bind 127.0.0.1:8081`)."
             ),
         }
     }

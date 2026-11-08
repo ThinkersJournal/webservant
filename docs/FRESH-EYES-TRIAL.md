@@ -2,7 +2,7 @@
 
 EXPECTATIONS 6.24: *an agent given only the README must reach the result* is part of the first-release gate. Method as HTTPAnt's
 `docs/FRESH-EYES-TRIAL.md`: the packaged crate behind an offline directory source, a fresh agent that knows nothing else, its report quoted.
-**This is one run. HTTPAnt's gate had three; a second run on the fixed pages is recommended before publish and has not been done.**
+**HTTPAnt's gate had three runs. This file records run 1, run 2 on the fixed pages, and run 3 if it appears below.**
 
 ## Run 1, 2026-11-08
 
@@ -57,7 +57,7 @@ afterwards; none of the fixes has been re-tried by a second agent.
 | 4 | The table promised the Linux wording "address already in use"; the "refused to connect" row's advice contradicted step 3 | both wordings listed; the row rewritten; a "nothing to serve" row added |
 | 5 | A typo printed a 7-line usage wall with the flag on line 1; no "did you mean"; `--help` was an error | one line naming the flag with a suggestion (`Did you mean --files?`); `--help`, `-h`, `help`, `--version` work (tests in `src/main.rs`) |
 | 6 | The README said `serve --files ./public` without creating `./public` | the README now creates it |
-| 7 | The README was dense with unexplained jargon ("each needs a new patent re-sweep first" was baffling) | a plain lead-in saying the list is detail to skip; the patent wording removed from the README |
+| 7 | The README was dense with unexplained jargon ("each needs a new patent re-sweep first" was baffling) | a plain lead-in saying the list is detail to skip; the patent wording removed from the README. **Run 2 found that one sentence, "each is explained where it matters in the quickstart", was still there and false** (the edit had been in a command that failed to run, and I had recorded it as done); fixed after run 2 |
 | 8 | "prints one line starting with NOT REACHABLE or `webservant:`" was false for a typo (several lines, no prefix) | the lead-in now says the messages start in a few different ways; the typo row names its start |
 | 9 | Step 7 read as though `check` took `--staging`; the README and page disagreed about when to use staging | step 6 says `check` always uses staging; step 7 says it uses the real service and why you tested first; the README now says "Run `webservant check` first" |
 | 10 | The Windows data directory was unverified | removed from the page (Linux only is claimed) |
@@ -74,3 +74,36 @@ server on port 80 and a phone on mobile data; that step has not been run by anyo
 That Part 2 works. That a Linux newcomer succeeds. That the fixed pages are better (no second run). That `cargo install webservant` works from
 crates.io. One of the agent's compound commands, which included a valid `check` without `--acme`, was stopped by the harness before it ran; nothing
 was sent to any certificate authority.
+
+## Run 2, 2026-11-08, on the pages as fixed after run 1
+
+A second fresh `sonnet` agent, same setup (the packaged crate rebuilt from the fixed branch, a new sandbox folder, the first run's installed binary
+removed from the shared cargo bin first so that nothing pre-answered it), same rules, same tasks, plus two asks: try to get help from the program as
+a newcomer would, and read Part 2 commands-first for contradictions between steps. It was not told what run 1 found. Again it did not run `check`
+with real flags or `--acme`. Its install was again `cargo install --path` (a directory registry cannot do `cargo install webservant`).
+
+**Result: Part 1 on the first attempt both ways again; every Part 1 failure row matched what it saw; `--help`, `help`, `serve --help` and
+`--version` worked; the typo printed one line with the suggestion (`unknown option `--fles` ... Did you mean `--files`?`).** Its answers to the
+Part 2 questions (ports and why, the test command and its success line, what to check first per failure row) were again right. It found **no problem
+in Part 1's flow** except the install story and two small things, and 12 in Part 2 and the README, all from reading:
+
+| # | finding (run 2) | done |
+|---|---|---|
+| 1 | "It is installed to ~/.cargo/bin" was wrong on its machine (CARGO_HOME elsewhere) | the page says cargo prints the path on its last line, and `~/.cargo/bin` is only "normally" |
+| 2 | The install-from-source box did not flow into the steps (where to `mkdir public` after `cd webservant`; steps still said `cargo install webservant`) | the box says "wherever this page says `cargo install webservant`, do this instead", and ends with `cd ..` |
+| 3 | `cargo add webservant` prints a wall of feature names that looks like an error; the Rust way gives no sign it is running | the page says the wall is normal and that cargo's `Running ...` line is the last thing you see |
+| 4 | PowerShell 5 / cmd and `echo` | "use a text editor in PowerShell or cmd" |
+| 5 | README: "That serves ./public ..." came right after the code with no context; the sentence "each is explained where it matters in the quickstart" was false | "The program above serves ..."; the sentence now says to skip the terms until needed |
+| 6 | Part 2 step 5's server must be stopped before step 6 (port 80), whether or not step 5 worked | "Either way, press Ctrl-C ... before step 6" |
+| 7 | Two copies of the binary (`~/.cargo/bin` first on PATH, no `setcap`) would give "Permission denied" | step 4 ends with `cargo uninstall webservant` so only the permitted copy remains; "repeat the three lines after an upgrade" |
+| 8 | `cargo install` needs a C compiler on a fresh server | listed in "What you need" with the Ubuntu package |
+| 9 | The systemd unit used `/srv/site` but nothing copied `public` there; no `daemon-reload`; a second, empty store would make a second order | copy and reload commands added; the page says the service has its own store and not to alternate many times |
+| 10 | `ufw` without allowing SSH locks you out | warning added |
+| 11 | "0.0.0.0" in the success URL; the AAAA check's "no answer" wording; "About 20 minutes" vs DNS taking hours | each explained; the time is "20 minutes of work plus waiting for DNS" |
+| 12 | `--bind foo` gets the advice "if the address is in use ... `.bind(...)`" (Rust API wording) | the message now also gives the command-line form `--bind 127.0.0.1:8081` |
+
+Verdict of the agent: "Part 1 is followable by a non-expert: it worked first try both ways, every error message matched the table ... The single
+biggest friction is the install story ... For Part 2, the biggest risk is the binary-copy / setcap / PATH confusion and leaving the step 5 server
+running before step 6."
+
+What run 2 does not show is the same list as run 1's: Part 2 was read, not run; one platform; an AI as the stranger.

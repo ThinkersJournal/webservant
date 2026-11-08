@@ -11,7 +11,7 @@ async fn main() -> webservant::Result<()> {
 
 **New here? Follow [docs/QUICKSTART.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/QUICKSTART.md)**: a page on your screen in five minutes, then a real `https://` site, tested first.
 
-That serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
+The program above serves `./public` at `http://127.0.0.1:8080/` until Ctrl-C. It listens on this machine only, so nothing is exposed until you say so.
 The same thing without writing code:
 
 ```sh
@@ -29,7 +29,7 @@ and stops by itself, so the example cannot go stale.
 ## What this release does
 
 The list below is the detail; you do not need any of it to get started (the quickstart above is enough). Terms such as `ETag` or HTTP-01 are the
-standard names of the mechanisms, and each is explained where it matters in the quickstart.
+standard names of the mechanisms; skip them until you need them.
 
 - **Static files.** `Content-Type`, `ETag` and `304`, `Range`, `HEAD`, `index.html` for a directory (and a redirect from `/docs` to `/docs/`).
   A path that leaves the folder is a `404`, the same as a missing file, whether it is spelled `..`, `%2e%2e%2f`, with a backslash, as a drive or
