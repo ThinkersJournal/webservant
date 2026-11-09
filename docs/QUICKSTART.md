@@ -101,7 +101,7 @@ does nothing.)
 
 ## Part 2: a real site with HTTPS
 
-This part is written for a **Linux server**. The same commands work elsewhere, but this page has not been tried on other systems.
+This part is written for a **Linux server**. It has been run once end to end through step 6 on Debian 13; the same commands should work elsewhere, but it has not been tried on other systems.
 
 What happens: WebServAnt asks a certificate authority (Let's Encrypt) for a certificate for your name, proves the name is yours by answering a
 question the authority sends to port 80 on your machine, and then serves your folder over HTTPS and renews the certificate by itself. For that to
@@ -115,7 +115,7 @@ two tests before the real thing (step 5, optional but quick, and step 6).
   on your router). You can log into it and install software.
 - An **email address you can read**, for the certificate authority to write to about expiry and problems.
 - **Rust and git on that computer.** On a fresh Ubuntu server: `sudo apt install build-essential git curl`, then install Rust with
-  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` and open a new terminal (the compiler package is what Rust links with).
+  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` and open a new terminal (the installer may end with some `CFLAGS` lines; they are harmless) (the compiler package is what Rust links with).
 - About 20 minutes of work, plus waiting for DNS to spread (step 2).
 
 ### 2. Point the name at the computer
@@ -139,7 +139,7 @@ domain has an AAAA record (an IPv6 address) that does not lead to this computer,
 
 Both must be reachable from the internet.
 
-- On the computer's own firewall. For example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`. **If you turn `ufw` on, allow SSH first
+- On the computer's own firewall, if it has one (some servers, such as a stock Debian 13, have no `ufw` and accept everything: then there is nothing to do here). For example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`. **If you turn `ufw` on, allow SSH first
   (`sudo ufw allow 22/tcp`) or you lock yourself out of the server.**
 - In your hosting company's control panel, if it has a "firewall" or "security group" (many do and they block everything by default): allow inbound
   TCP 80 and 443.

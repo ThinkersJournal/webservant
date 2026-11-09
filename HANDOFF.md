@@ -1,7 +1,7 @@
 # WebServAnt lane HANDOFF
 
 Current state only; history is in git. Written 2026-11-08 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
-at 92ff2df, 0.4.2). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is in PR #14 (0.4.3, docs only).
+at 6874883, 0.4.3). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is merged (#14, 0.4.3, docs only).
 
 ## Why (CireSnave 2026-10-28, ROADMAP.md)
 Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published and depended on as `~0.5.22`.
@@ -25,7 +25,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 ## Honest gaps (do not claim more than this)
 - No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
   touching a real CA). The last round of fixes after run 3 was not re-tried.
-- Nothing has run against Let's Encrypt, staging or production. The systemd unit and the phone-on-mobile-data step are unrun.
+- `webservant check` passed against Let's Encrypt STAGING on a real Debian 13 VPS (2026-11-09, run by the PM's agent over SSH, trial run 4). Never run: `serve` with a real certificate and renewal, production, the systemd unit, the phone-on-mobile-data step.
 - `cargo install webservant` from crates.io is untested (not published); QUICKSTART has a "until the first release" block to DELETE at publish.
 - The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
 - Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
@@ -49,4 +49,4 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 UPDATE 2026-11-08: board 402 RULED (CireSnave: "402: A"): publish the first version on our sweep once the staging run is done and httpant 0.7.1 is on
 crates.io (PM publishes it next; our `~0.5.22` dep will need bumping then, PM allocates the version). Four gated features stay out until a re-sweep.
 
-WAIT: PM relay of CireSnave's staging run and httpant 0.7.1 on crates.io | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-08T23:00:00Z
+WAIT: PM raw output of QUICKSTART Part 2 on vps-62960c17 (staging.thinkersjournal.com, PM runs it over SSH at 6874883, steps sent 2026-11-09; every difference goes into QUICKSTART and FRESH-EYES-TRIAL) and httpant 0.7.1 on crates.io | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-09T17:00:00Z

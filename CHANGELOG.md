@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.4] - 2026-11-09
+
+- Docs only: the first run of `docs/QUICKSTART.md` Part 2 against a real server and a real CA (Let's Encrypt staging, Debian 13 VPS, run by the PM's agent): `webservant check` printed the success line. Recorded as run 4 in `docs/FRESH-EYES-TRIAL.md`; three differences fixed in the quickstart (no `ufw` on some servers, harmless rustup `CFLAGS` lines, "tried on Debian 13"). `ROADMAP.md` and `HANDOFF.md` updated. No code change. Version proposed; the PM allocates it at the gate.
+
 ## [0.4.3] - 2026-11-08
 
 - Docs only: `ROADMAP.md` rows 0, 5 and 9 brought to current state (row 0 still read "next" with D1/D2/D5/D8 open and row 9 "done in this PR", which led to a stale task), CireSnave's board 402 ruling recorded ("402: A": publish the first version on our patent sweep), and `HANDOFF.md` rewritten. No code change. Allocated by the PM.
