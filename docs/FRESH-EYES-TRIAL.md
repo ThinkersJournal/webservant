@@ -140,3 +140,23 @@ friction: Part 2 never covers the `www` name that step 2 tells you to create, an
 installed. Part 2 was never run by any agent and each reading found a different set of gaps (13, 12, then 4 that would block); the sequence suggests
 the page is converging but not that it is finished, and the real test of Part 2 is a person following it on a real Linux server with a real domain.
 Nothing in these runs touched a certificate authority.
+
+## Run 4, 2026-11-09: Part 2 on a real Linux server, against Let's Encrypt staging (the first run of the page against a real CA)
+
+**Who:** the PM's session (an AI agent, not the author's lane, not a person), over SSH, following the numbered steps of Part 2 at `main` 6874883 (0.4.3) and
+reporting raw output. **Where:** vps-62960c17 (OVH, Debian 13 "trixie"), name `staging.thinkersjournal.com` (A 147.135.113.216, DNS only), non-root user
+`debian`. Built on the server with `cargo install --path .` (1m02s, `Installed package webservant v0.4.3`), then the page's `cp` and `setcap` lines.
+
+**Result: step 6 printed exactly the success line and exited 0:**
+`OK: https://acme-staging-v02.api.letsencrypt.org/directory issued a certificate for staging.thinkersjournal.com. Nothing was kept.`
+Port 80 was reachable from the internet without any change at the hosting panel (the authority validated it). The `AAAA` lookup returned no answer, as the page says it should.
+
+| # | difference from the page | done |
+|---|---|---|
+| 1 | Debian 13 has no `ufw`, and the host firewall was accept-all, so the page's `ufw` lines did nothing there | step 3 says a server may have no `ufw` (use the system's own firewall tool, or nothing if none is active) |
+| 2 | `getcap` (package `libcap2-bin`) was not installed; not needed to follow the page | none |
+| 3 | The rustup installer printed `CFLAGS` noise lines at the end of its output | one sentence in step 1 saying it is harmless |
+
+**What this run does not show.** Step 5 (the phone on mobile data, a visitor's browser) and step 7 (a certificate served and renewed) were skipped; so
+the systemd unit and renewal on a real server are still unrun, and nothing has run against Let's Encrypt **production** (not to be run until the PM says
+so). One server, one distribution, one name. The runner is an AI agent, so "a person following it" is still untested.
