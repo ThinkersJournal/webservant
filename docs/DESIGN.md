@@ -174,6 +174,8 @@ config rendering (WebHostAnt's edge adapters).
 
 Each has a recommendation; those that block row 1 are marked. None is for CireSnave unless the PM says so.
 
+**Ruled by the PM, 2026-11-10: D1 yes (one package, library and binary), D2 move to HTTPAnt 0.7.1 now (the keep-current rule; WebHostAnt already did), D5 yes, D8 yes; D3, D4, D6, D7 and D9 as recommended below.** All are built (slices 1 to 3, 0.4.x); the D2 move is 0.4.6. The text below is the original recommendation, kept as the reason.
+
 - **D1 (blocks row 1).** *Is the program one crate with a library and a binary, or a library crate plus a separate `webservant-cli`?* I recommend one package
   `webservant` with a `[[bin]]`, so `cargo install webservant` works and `cargo add webservant` gives the library; HTTPAnt's multi-crate layout was driven by a hub rule
   that does not apply to a program.
