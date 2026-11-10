@@ -26,7 +26,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 - No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
   touching a real CA). The last round of fixes after run 3 was not re-tried.
 - `webservant check` passed against Let's Encrypt STAGING on a real Debian 13 VPS (2026-11-09, run by the PM's agent over SSH, trial run 4). Never run: `serve` with a real certificate and renewal, production, the systemd unit, the phone-on-mobile-data step.
-- `cargo install webservant` from crates.io is untested (not published); QUICKSTART has a "until the first release" block to DELETE at publish.
+- 0.4.4 is PUBLISHED (PM, 2026-11-10, tag v0.4.4 at ee5a23a). `cargo install webservant --version 0.4.4` was run on Windows and worked; not run on Linux. README is marked pre-release and the quickstart block is deleted (PR #16).
 - The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
 - Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
 
@@ -38,7 +38,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
   done that had never run. Read the file back before claiming a fix.
 - CI flakes seen: cargo-deny action's docker `apk update`, and CodeRipper's gitleaks download (HTTP 504) fail the portfolio job by design when a rule
   cannot run. Re-run only the failed jobs; read the log first.
-- Sonnet only for subagents; short messages; headers per MESSAGE-FORMATS.md. Never `gh auth switch`. An untracked file `supertool` in the worktree
+- End every GitHub PR body, comment and squash-merge note with a last line "— lane: webservant" (CireSnave 2026-11-09). Sonnet only for subagents; short messages; headers per MESSAGE-FORMATS.md. Never `gh auth switch`. An untracked file `supertool` in the worktree
   is not ours: never add it (`git add -A . ':!supertool'`).
 
 ## Next
@@ -49,4 +49,4 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 UPDATE 2026-11-08: board 402 RULED (CireSnave: "402: A"): publish the first version on our sweep once the staging run is done and httpant 0.7.1 is on
 crates.io (PM publishes it next; our `~0.5.22` dep will need bumping then, PM allocates the version). Four gated features stay out until a re-sweep.
 
-WAIT: PM raw output of QUICKSTART Part 2 on vps-62960c17 (staging.thinkersjournal.com, PM runs it over SSH at 6874883, steps sent 2026-11-09; every difference goes into QUICKSTART and FRESH-EYES-TRIAL) and httpant 0.7.1 on crates.io | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-09T17:00:00Z
+WAIT: PM word to move httpant ~0.5.22 -> 0.7.1 (0.7.1 is on crates.io; I move only on the PM word); PM merge of the --renew-check-every PR (0.4.5), then I send the step-C-variant steps (plant a cert due in 3 min, watch a running server swap it) for the PM to run; PM take of the first-publish question to CireSnave | check: git fetch -q && git log --oneline origin/main -3; cargo search httpant | wake: 2026-11-10T17:00:00Z

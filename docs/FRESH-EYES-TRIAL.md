@@ -157,6 +157,14 @@ Port 80 was reachable from the internet without any change at the hosting panel 
 | 2 | `getcap` (package `libcap2-bin`) was not installed; not needed to follow the page | none |
 | 3 | The rustup installer printed `CFLAGS` noise lines at the end of its output | one sentence in step 1 saying it is harmless |
 
+**Run 4b, 2026-11-10: serve and renewal at start, same server, binary 0.4.3, `--staging` on every command (the PM's agent again).** A: `serve --staging` printed
+`serving https://0.0.0.0:443/`, `curl -k` returned the page, the certificate's issuer was `(STAGING) Artificial Amaranth YE1` with 90 days, the store files were mode 0600,
+Ctrl-C exited cleanly. B: a second start printed `serving` in about a second and `chain.pem` was unchanged. C: a self-signed certificate (same key and name, 4 hours
+of life, already due, not expired) was planted in the store; the next start printed `serving` and the stored chain became `(STAGING) Baloney Bulgur YE2` with a
+notBefore of now and 90 days, a different hash, and `openssl s_client` showed the same new certificate. So: reuse of a stored certificate, and replacing a due one at
+start, both work against a real CA. **Not shown by 4b:** the 12-hourly renewal loop on a *running* server (the command line could not shorten the interval; `--renew-check-every`
+in 0.4.5 does), a renewal that fails and keeps the old certificate, and production.
+
 **What this run does not show.** Step 5 (the phone on mobile data, a visitor's browser) and step 7 (a certificate served and renewed) were skipped; so
 the systemd unit and renewal on a real server are still unrun, and nothing has run against Let's Encrypt **production** (not to be run until the PM says
 so). One server, one distribution, one name. The runner is an AI agent, so "a person following it" is still untested.

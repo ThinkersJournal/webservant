@@ -2,6 +2,8 @@
 
 **Serve a folder of files as a website, on the Rust web library you choose.**
 
+> **Pre-release (0.x).** The first published version is 0.4.4. Until 1.0 a breaking change bumps the second number (0.4 to 0.5), so pin it (`webservant = "0.4"`) and read the [changelog](https://github.com/ThinkersJournal/webservant/blob/main/CHANGELOG.md) before upgrading. What has not been run yet is listed in [docs/FRESH-EYES-TRIAL.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/FRESH-EYES-TRIAL.md).
+
 ```rust
 #[tokio::main]
 async fn main() -> webservant::Result<()> {
@@ -20,8 +22,7 @@ mkdir public && echo "<h1>Hello</h1>" > public/index.html
 webservant serve --files ./public
 ```
 
-The Rust version prints nothing while it runs (that is success); the command prints one `serving ...` line. (Before the first release is published,
-`cargo install webservant` will not find it: the quickstart shows how to install from source.)
+The Rust version prints nothing while it runs (that is success); the command prints one `serving ...` line. (Before 0.4.4, the first release, `cargo install webservant` could not find it.)
 
 To use it as a library: `cargo add webservant` and `cargo add tokio --features macros,rt-multi-thread`. The repository's CI also runs
 [`examples/hello.rs`](https://github.com/ThinkersJournal/webservant/blob/main/examples/hello.rs), a version that serves a file, fetches it, checks it

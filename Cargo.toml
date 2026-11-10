@@ -1,6 +1,6 @@
 [package]
 name = "webservant"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2024"
 description = "A web server program and library: static files, a reverse proxy and automatic HTTPS certificates (ACME), on the Rust web library you choose (built on HTTPAnt)"
 license = "MIT OR Apache-2.0"

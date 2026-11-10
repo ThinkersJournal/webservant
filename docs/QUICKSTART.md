@@ -7,16 +7,6 @@ before it matters.
 You need Rust installed ([rustup.rs](https://rustup.rs)). You do not need to write Rust to use the command-line program, but Part 1 shows the Rust
 version too because it is three lines.
 
-> **Until the first release is published** `cargo install webservant` will not find it. Wherever this page says `cargo install webservant`, do this
-> instead (in a folder of your choice), and then go back to the folder where you want to work (`cd ..`):
->
-> ```sh
-> git clone https://github.com/ThinkersJournal/webservant
-> cd webservant
-> cargo install --path .
-> cd ..
-> ```
-
 The first install takes a couple of minutes while Rust compiles it. You will see a lot of "Compiling" lines; that is normal.
 
 ---
