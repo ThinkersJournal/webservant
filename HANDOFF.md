@@ -26,7 +26,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 - No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
   touching a real CA). The last round of fixes after run 3 was not re-tried.
 - `webservant check` passed against Let's Encrypt STAGING on a real Debian 13 VPS (2026-11-09, run by the PM's agent over SSH, trial run 4). Never run: `serve` with a real certificate and renewal, production, the systemd unit, the phone-on-mobile-data step.
-- `cargo install webservant` from crates.io is untested (not published); QUICKSTART has a "until the first release" block to DELETE at publish.
+- 0.4.4 is PUBLISHED (PM, 2026-11-10, tag v0.4.4 at ee5a23a). `cargo install webservant --version 0.4.4` was run on Windows and worked; not run on Linux. README is marked pre-release and the quickstart block is deleted (PR #16).
 - The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
 - Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
 
