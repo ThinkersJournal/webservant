@@ -4,14 +4,14 @@
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: webservant serve --files DIR [--name HOST] [--bind ADDR] [--cert CERT.pem --key KEY.pem] [--dotfiles] [--max-body BYTES]\n\
-automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR] [--acme-directory URL] [--acme-ca-root PEMFILE]\n\
+automatic HTTPS: webservant serve --files DIR --name HOST --acme you@example.org [--staging] [--also-name HOST] [--acme-store DIR] [--http-bind ADDR] [--acme-directory URL] [--acme-ca-root PEMFILE] [--renew-check-every SECS]\n\
 forward a path to an app: webservant serve --files DIR --proxy /api=http://127.0.0.1:3000   (--proxy may repeat; --files is then optional)\n\
 will automatic HTTPS work here? (one staging issuance, nothing kept): webservant check --name HOST --acme you@example.org --files DIR\n\
 example: webservant serve --files ./public\n\
 this serves ./public at http://127.0.0.1:8080/ until Ctrl-C";
 
 /// Every option the command line knows, for "did you mean".
-const OPTIONS: [&str; 19] = [
+const OPTIONS: [&str; 20] = [
     "--name",
     "--files",
     "--bind",
@@ -27,6 +27,7 @@ const OPTIONS: [&str; 19] = [
     "--acme-ca-root",
     "--http-bind",
     "--also-name",
+    "--renew-check-every",
     "--help",
     "--version",
     "-h",
@@ -77,6 +78,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
     let (mut directory, mut ca_root): (Option<String>, Option<String>) = (None, None);
     let (mut acme, mut staging, mut store, mut http_bind, mut also) =
         (None, false, None, None, Vec::new());
+    let mut check_every: Option<u64> = None;
     while let Some(flag) = it.next() {
         let mut value = |what: &str| {
             it.next()
@@ -112,6 +114,12 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             "--acme-store" => store = Some(value("--acme-store")?),
             "--http-bind" => http_bind = Some(value("--http-bind")?),
             "--also-name" => also.push(value("--also-name")?),
+            "--renew-check-every" => {
+                let v = value("--renew-check-every")?;
+                check_every = Some(v.parse::<u64>().map_err(|_| {
+                    format!("`--renew-check-every` takes a number of seconds, for example `--renew-check-every 60`.\n{USAGE}")
+                })?);
+            }
             other => {
                 let hint = suggestion(other)
                     .map(|s| format!(" Did you mean `{s}`?"))
@@ -127,10 +135,11 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             || store.is_some()
             || !also.is_empty()
             || directory.is_some()
-            || ca_root.is_some())
+            || ca_root.is_some()
+            || check_every.is_some())
     {
         return Err(format!(
-            "`--staging`, `--acme-store`, `--also-name`, `--acme-directory` and `--acme-ca-root` only apply with `--acme you@example.org`.
+            "`--staging`, `--acme-store`, `--also-name`, `--acme-directory`, `--acme-ca-root` and `--renew-check-every` only apply with `--acme you@example.org`.
 {USAGE}"
         ));
     }
@@ -158,7 +167,7 @@ fn settings_from_args(args: Vec<String>) -> Result<webservant::Settings, String>
             ca_root_pem_file: ca_root.map(Into::into),
             store: store.map(Into::into),
             also_names: also,
-            ..Default::default()
+            check_every_secs: check_every,
         }),
         proxy: proxies
             .into_iter()
@@ -314,6 +323,40 @@ mod tests {
         assert_eq!(
             (s.proxy[0].prefix.as_str(), s.proxy[0].upstream.as_str()),
             ("/api", "http://127.0.0.1:3000")
+        );
+    }
+
+    #[test]
+    fn renew_check_every_is_a_number_of_seconds_and_needs_acme() {
+        let s = settings_from_args(args(&[
+            "serve",
+            "--files",
+            "pub",
+            "--name",
+            "example.org",
+            "--acme",
+            "me@example.org",
+            "--renew-check-every",
+            "30",
+        ]))
+        .unwrap();
+        assert_eq!(s.acme.unwrap().check_every_secs, Some(30));
+        for bad in [
+            &["serve", "--renew-check-every", "30"][..],
+            &[
+                "serve",
+                "--acme",
+                "me@example.org",
+                "--renew-check-every",
+                "soon",
+            ][..],
+            &["serve", "--acme", "me@example.org", "--renew-check-every"][..],
+        ] {
+            assert!(settings_from_args(args(bad)).is_err(), "{bad:?}");
+        }
+        assert_eq!(
+            suggestion("--renew-check-evry"),
+            Some("--renew-check-every")
         );
     }
 

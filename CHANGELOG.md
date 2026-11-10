@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.5] - 2026-11-10
+
+- `--renew-check-every SECS` on the command line (with `--acme`): how often the running server looks at its certificate, 12 hours by default; it is the `acme.check_every_secs` setting that already existed. It lets the in-process renewal loop be watched on a running server in minutes (plant a certificate that is nearly due, start, wait). The staging serve-and-renew steps A to C (serve, second start reuses, a planted due certificate is renewed at start) passed on the Debian 13 VPS and are recorded in `docs/FRESH-EYES-TRIAL.md` run 4. Version proposed; the PM allocates it at the gate.
+
 ## [0.4.4] - 2026-11-09
 
 - Docs only: the first run of `docs/QUICKSTART.md` Part 2 against a real server and a real CA (Let's Encrypt staging, Debian 13 VPS, run by the PM's agent): `webservant check` printed the success line. Recorded as run 4 in `docs/FRESH-EYES-TRIAL.md`; three differences fixed in the quickstart (no `ufw` on some servers, harmless rustup `CFLAGS` lines, "tried on Debian 13"). `ROADMAP.md` and `HANDOFF.md` updated. No code change. Version proposed; the PM allocates it at the gate.
