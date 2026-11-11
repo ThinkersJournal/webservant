@@ -1,7 +1,7 @@
 # WebServAnt lane HANDOFF
 
 Current state only; history is in git. Rewritten 2026-11-11 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
-at 695837b, 0.4.6; the docs PR for run 4c proposes 0.4.7). The primary checkout C:\Projects\webservant stays on main. 0.4.4 is PUBLISHED (tag v0.4.4).
+at d3c7a1b, 0.4.7; the docs PR for run 4d proposes 0.4.8). The primary checkout C:\Projects\webservant stays on main. 0.4.4 is PUBLISHED (tag v0.4.4).
 
 ## Why (CireSnave 2026-10-28, ROADMAP.md)
 Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.7.1 is published and depended on as `~0.7.1` (PM ruling D2, 2026-11-10; merged in #17, 0.4.6).
@@ -25,7 +25,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 ## Honest gaps (do not claim more than this)
 - No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
   touching a real CA). The last round of fixes after run 3 was not re-tried.
-- On Let's Encrypt STAGING, Debian 13 VPS, run by the PM's agent over SSH (trial runs 4, 4b, 4c): `check`, `serve`, reuse, renewal at start and renewal on a RUNNING server (same PID) all passed. Never run: a failed renewal on a real CA (tests only), production, the systemd unit (steps sent to the PM 2026-11-11), the phone-on-mobile-data step, a person following the page.
+- On Let's Encrypt STAGING, Debian 13 VPS, run by the PM's agent over SSH (trial runs 4, 4b, 4c): `check`, `serve`, reuse, renewal at start and renewal on a RUNNING server (same PID) all passed. Never run: a failed renewal on a real CA (tests only), production, a reboot with the systemd unit (unit itself passed in run 4d, 2026-11-11; the PM saw no log line: debian user not in adm), the phone-on-mobile-data step, a person following the page.
 - 0.4.4 is PUBLISHED (PM, 2026-11-10, tag v0.4.4 at ee5a23a). `cargo install webservant --version 0.4.4` was run on Windows and worked; not run on Linux. README is marked pre-release and the quickstart block is deleted (PR #16).
 - The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
 - Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
@@ -49,4 +49,4 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 UPDATE 2026-11-08: board 402 RULED (CireSnave: "402: A"): publish the first version on our sweep once the staging run is done and httpant 0.7.1 is on
 crates.io (PM publishes it next; our `~0.5.22` dep will need bumping then, PM allocates the version). Four gated features stay out until a re-sweep.
 
-WAIT: PM output of the systemd-unit run (QUICKSTART step 8, --staging; steps sent 2026-11-11) and PM gate of the docs PR recording run 4c | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-11T11:00:00Z
+WAIT: PM gate and merge of the docs PR recording run 4d (0.4.8 proposed) | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-11T16:00:00Z

@@ -228,7 +228,8 @@ address.
 - **Where things are kept.** The account and certificates (they contain private keys) are in a folder only your user can read: on Linux
   `~/.local/share/webservant`. Choose another place with `--acme-store /some/folder`.
 - **Stopping.** Ctrl-C, or `SIGTERM` (what `systemctl stop` sends), stops it cleanly.
-- **Starting on boot (systemd).** A starting point, **not yet run on a real server by the author**, so read it before using it. Save as
+- **Starting on boot (systemd).** Run once on a Debian VPS against Let's Encrypt staging (start, restart, kill and restart, stop all worked; **not tested across a reboot**), so read it
+  before using it. Save as
   `/etc/systemd/system/webservant.service`:
 
   ```ini
@@ -256,6 +257,8 @@ address.
   sudo systemctl daemon-reload
   sudo systemctl enable --now webservant
   ```
+
+  Read the service's log with `sudo journalctl -u webservant`; without `sudo` a user outside the `adm` or `systemd-journal` group sees "No entries".
 
   Because of `AmbientCapabilities` the `setcap` line is not needed for the service. The service keeps its **own** store (`/var/lib/webservant`), so it
   orders its own certificate; do not switch back and forth between running it by hand and as a service many times, or you will use up the real

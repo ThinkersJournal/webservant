@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.8] - 2026-11-11
+
+- Docs only: the systemd unit (QUICKSTART step 8) run on a Debian VPS against Let's Encrypt staging (trial run 4d: start, restart with the stored certificate reused, SIGKILL then auto-restart, clean stop). QUICKSTART now says it was run (not across a reboot) and to read the log with `sudo journalctl`. No code change. Version proposed; the PM allocates it at the gate.
+
 ## [0.4.7] - 2026-11-11
 
 - Docs only: the renewal loop on a running server, proven on Let's Encrypt staging (trial run 4c: a due certificate planted, the same process swapped it for a real staging one at the due time), `ROADMAP.md` and `HANDOFF.md` brought up to date. No code change. Version proposed; the PM allocates it at the gate.
