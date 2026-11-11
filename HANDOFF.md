@@ -1,12 +1,12 @@
 # WebServAnt lane HANDOFF
 
-Current state only; history is in git. Written 2026-11-08 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
-at 6874883, 0.4.3). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is merged (#14, 0.4.3, docs only).
+Current state only; history is in git. Rewritten 2026-11-11 by the lane. Worktree C:\Projects\webservant-wt-lane on branch lane/webservant (= origin/main
+at 695837b, 0.4.6; the docs PR for run 4c proposes 0.4.7). The primary checkout C:\Projects\webservant stays on main. 0.4.4 is PUBLISHED (tag v0.4.4).
 
 ## Why (CireSnave 2026-10-28, ROADMAP.md)
-Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.7.1 is published and depended on as `~0.7.1` (PM ruling D2, 2026-11-10; PR for 0.4.6 stacked on #16).
+Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.7.1 is published and depended on as `~0.7.1` (PM ruling D2, 2026-11-10; merged in #17, 0.4.6).
 
-## State: everything the roadmap names is built and merged (#1 to #13, 0.4.2), nothing is published
+## State: everything the roadmap names is built and merged (#1 to #17, 0.4.6); 0.4.4 is the published version
 Built: static files (traversal/symlink/range/304 tests), HTTPS from a PEM pair, ACME HTTP-01 certificates via `instant-acme` behind our `AcmeClient`
 (fake CA + Pebble in Docker, required in Linux CI), renewal that keeps the last good certificate, private store (Unix 0700, Windows icacls), reverse
 proxy (prefix and `/` with files first, per-route timeouts, site-wide body limit), `check_reachable` / `webservant check`, `Settings` + ConfigurAnt
@@ -25,7 +25,7 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 ## Honest gaps (do not claim more than this)
 - No agent or person has RUN QUICKSTART Part 2 on a real Linux server. The three fresh-eyes runs only read it (Windows; they were forbidden from
   touching a real CA). The last round of fixes after run 3 was not re-tried.
-- `webservant check` passed against Let's Encrypt STAGING on a real Debian 13 VPS (2026-11-09, run by the PM's agent over SSH, trial run 4). Never run: `serve` with a real certificate and renewal, production, the systemd unit, the phone-on-mobile-data step.
+- On Let's Encrypt STAGING, Debian 13 VPS, run by the PM's agent over SSH (trial runs 4, 4b, 4c): `check`, `serve`, reuse, renewal at start and renewal on a RUNNING server (same PID) all passed. Never run: a failed renewal on a real CA (tests only), production, the systemd unit (steps sent to the PM 2026-11-11), the phone-on-mobile-data step, a person following the page.
 - 0.4.4 is PUBLISHED (PM, 2026-11-10, tag v0.4.4 at ee5a23a). `cargo install webservant --version 0.4.4` was run on Windows and worked; not run on Linux. README is marked pre-release and the quickstart block is deleted (PR #16).
 - The connect timeout is validated but untested; ConfigurAnt's environment and flag layers are not exercised; no `--config FILE` (needs a TOML dep).
 - Not built, only if asked: add a name to a running site (C1); per-route body limit (HTTPAnt's limit is site-wide).
@@ -49,4 +49,4 @@ Keep OUT of the first version (each needs a patent re-sweep first): on-demand is
 UPDATE 2026-11-08: board 402 RULED (CireSnave: "402: A"): publish the first version on our sweep once the staging run is done and httpant 0.7.1 is on
 crates.io (PM publishes it next; our `~0.5.22` dep will need bumping then, PM allocates the version). Four gated features stay out until a re-sweep.
 
-WAIT: PM word to move httpant ~0.5.22 -> 0.7.1 (0.7.1 is on crates.io; I move only on the PM word); PM merge of the --renew-check-every PR (0.4.5), then I send the step-C-variant steps (plant a cert due in 3 min, watch a running server swap it) for the PM to run; PM take of the first-publish question to CireSnave | check: git fetch -q && git log --oneline origin/main -3; cargo search httpant | wake: 2026-11-10T17:00:00Z
+WAIT: PM output of the systemd-unit run (QUICKSTART step 8, --staging; steps sent 2026-11-11) and PM gate of the docs PR recording run 4c | check: git fetch -q && git log --oneline origin/main -3 | wake: 2026-11-11T11:00:00Z

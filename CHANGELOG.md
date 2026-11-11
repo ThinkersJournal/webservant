@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.7] - 2026-11-11
+
+- Docs only: the renewal loop on a running server, proven on Let's Encrypt staging (trial run 4c: a due certificate planted, the same process swapped it for a real staging one at the due time), `ROADMAP.md` and `HANDOFF.md` brought up to date. No code change. Version proposed; the PM allocates it at the gate.
+
 ## [0.4.6] - 2026-11-10
 
 - HTTPAnt `~0.5.22` to `~0.7.1` (PM ruling D2, 2026-11-10: keep dependencies current). No source change was needed: `cargo build --all-targets`, `clippy -D warnings` and `cargo test` (every test target) pass on 0.7.1 on Windows; the Pebble-in-Docker tests run in Linux CI. The PM's rulings D1, D2, D5 and D8 are recorded in `docs/DESIGN.md`. Version proposed; the PM allocates it at the gate. Stacked on #16 (0.4.5).
