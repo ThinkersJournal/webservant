@@ -4,7 +4,7 @@ Current state only; history is in git. Written 2026-11-08 by the lane. Worktree 
 at 6874883, 0.4.3). The primary checkout C:\Projects\webservant stays on main. This file's rewrite is merged (#14, 0.4.3, docs only).
 
 ## Why (CireSnave 2026-10-28, ROADMAP.md)
-Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.5.22 is published and depended on as `~0.5.22`.
+Build order HTTPAnt -> WebServAnt -> WebHostAnt local serving. HTTPAnt 0.7.1 is published and depended on as `~0.7.1` (PM ruling D2, 2026-11-10; PR for 0.4.6 stacked on #16).
 
 ## State: everything the roadmap names is built and merged (#1 to #13, 0.4.2), nothing is published
 Built: static files (traversal/symlink/range/304 tests), HTTPS from a PEM pair, ACME HTTP-01 certificates via `instant-acme` behind our `AcmeClient`

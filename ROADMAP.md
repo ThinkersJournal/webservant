@@ -2,7 +2,7 @@
 
 The repo's own work list (a HANDOFF is current state and is rewritten; work that must not be lost lives here). Build order set by CireSnave
 2026-10-28 (verbatim): *"I'm thinking WebHostAnt's local serving should wait until WebServAnt is available. Similarly, WebServAnt should wait until
-HTTPAnt is available."* HTTPAnt is published (`httpant` 0.5.22), so this is the next tool. Design: [docs/DESIGN.md](docs/DESIGN.md) (draft).
+HTTPAnt is available."* HTTPAnt is published (`httpant` 0.7.1 from 0.4.6; 0.5.22 before), so this is the next tool. Design: [docs/DESIGN.md](docs/DESIGN.md) (draft).
 Status: `next` (do now, in this order), `later`, `blocked` (needs a decision), `done`.
 
 **What WebServAnt is:** a web server program, and the library under it, that works with any Rust web library because it is built on HTTPAnt: static

@@ -934,9 +934,9 @@ dependencies = [
 
 [[package]]
 name = "httpant"
-version = "0.5.22"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f592238604a2c542c1f4b2a0891526ddeef9923c62484c1de397250c06dd57a"
+checksum = "8141eebea0edf080a1ef7297d8b423aceba1f631953a9c6f0a725fe916d5702f"
 dependencies = [
  "httpant-client",
  "httpant-core",
@@ -945,9 +945,9 @@ dependencies = [
 
 [[package]]
 name = "httpant-client"
-version = "0.5.22"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1192966ca6f133632ec7380701f5c6547a182d8d07570c76d940194bbe2bf043"
+checksum = "80281245cb3a0d26a2e411bfd51ec4d670cb3efb0676524acdaaa7ae3ed19646"
 dependencies = [
  "bytes",
  "http-body",
@@ -963,24 +963,28 @@ dependencies = [
 
 [[package]]
 name = "httpant-core"
-version = "0.5.22"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69b6733dc89e6ae836bb93b47f5761460a9bd0fc0439ec36691f7b3cc7f5172a"
+checksum = "20893fd9232ed158ba410bd7f1520b7b7d65c8a8a5186ddcf40982601bb992b7"
 dependencies = [
  "bytes",
  "http 1.5.0",
  "http-body",
  "http-body-util",
+ "serde",
+ "serde_urlencoded",
  "thiserror",
  "tower",
 ]
 
 [[package]]
 name = "httpant-server"
-version = "0.5.22"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b986c0eb070d640a57fbb82abecc61576ad1299ba424c31ae005a1043e9e6c9"
+checksum = "b646ae813b3eb1def77066b8569525a45909c83665138ae93e18006182cc30c8"
 dependencies = [
+ "actix-http",
+ "actix-service",
  "actix-web",
  "axum",
  "bytes",
@@ -993,6 +997,7 @@ dependencies = [
  "poem",
  "rustls",
  "salvo_core",
+ "serde",
  "tokio",
  "tokio-rustls",
  "tower",
@@ -2670,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "webservant"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "bytes",
  "configurant",
