@@ -165,6 +165,14 @@ notBefore of now and 90 days, a different hash, and `openssl s_client` showed th
 start, both work against a real CA. **Not shown by 4b:** the 12-hourly renewal loop on a *running* server (the command line could not shorten the interval; `--renew-check-every`
 in 0.4.5 does), a renewal that fails and keeps the old certificate, and production.
 
+**Run 4c, 2026-11-10: the renewal loop on a RUNNING server, same VPS, binary 0.4.5 (`--renew-check-every 30`), `--staging` (the PM's agent).** A self-signed certificate
+(same key and name, lifetime 185 min, notBefore 13:10:40Z, notAfter 16:15:40Z, so due at about 15:13:57Z and not expired) was planted and the server started at 15:10:44Z; it
+served the planted certificate (sha256 prefix `32b6dd89cc1eff89`) unchanged to 15:14:15Z. At 15:14:45Z the served issuer was `(STAGING) Artificial Amaranth YE1`, a new
+chain (`17aba6882bcf3aac`), the **same process (PID 955892)** on every later watch line: a running server replaced a due certificate by itself, at the due time, against a
+real CA. The first attempt that day failed on the PM's side (`cargo` not on PATH over a non-interactive ssh, so the old 0.4.3 binary refused the new flag) and was rerun.
+**Not shown by 4c:** a renewal that fails and keeps the old certificate (covered by the fake-CA and Pebble tests only; the PM judged a firewall trick on the VPS not worth it),
+production, and a person following the page.
+
 **What this run does not show.** Step 5 (the phone on mobile data, a visitor's browser) and step 7 (a certificate served and renewed) were skipped; so
 the systemd unit and renewal on a real server are still unrun, and nothing has run against Let's Encrypt **production** (not to be run until the PM says
 so). One server, one distribution, one name. The runner is an AI agent, so "a person following it" is still untested.
