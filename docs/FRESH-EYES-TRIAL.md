@@ -173,6 +173,12 @@ real CA. The first attempt that day failed on the PM's side (`cargo` not on PATH
 **Not shown by 4c:** a renewal that fails and keeps the old certificate (covered by the fake-CA and Pebble tests only; the PM judged a firewall trick on the VPS not worth it),
 production, and a person following the page.
 
-**What this run does not show.** Step 5 (the phone on mobile data, a visitor's browser) and step 7 (a certificate served and renewed) were skipped; so
-the systemd unit and renewal on a real server are still unrun, and nothing has run against Let's Encrypt **production** (not to be run until the PM says
+**Run 4d, 2026-11-11: the systemd unit (QUICKSTART step 8) on the same Debian VPS, binary 0.4.5, `--staging` added to `ExecStart`, no reboot (the PM's agent).** `systemctl enable --now`
+made the symlink; after 60 s `is-active` was `active` and `curl -ks https://staging.thinkersjournal.com/` returned the site's page; issuer `(STAGING) Baloney Bulgur YE2`. **Restart:**
+still active, certificate fingerprint unchanged (the stored certificate was reused). **Crash (`SIGKILL`):** active again, `NRestarts=1`, new MainPID. **Stop:** `Result=success`,
+`ExecMainStatus=0`, inactive. The unit was then removed. **One gap:** `journalctl -u webservant` printed "No entries" because the login user was in neither `adm` nor
+`systemd-journal`, so the "serving https://..." log line was never seen, though the service clearly served. The page now says to use `sudo journalctl`.
+**Not shown by 4d:** a reboot (it is the owner's VPS), production, and a person following the page.
+
+**What this run does not show.** Step 5 (the phone on mobile data, a visitor's browser) was skipped (the systemd unit was run in 4d); nothing has run against Let's Encrypt **production** (not to be run until the PM says
 so). One server, one distribution, one name. The runner is an AI agent, so "a person following it" is still untested.
