@@ -39,7 +39,7 @@ let certs = site.certificates().unwrap();                // status(), renew_now(
 - That a name is covered because `start()` returned: it returned because *a* certificate was put in service for the names listed, and C6 says that is not a read-back.
 - That a renewal worked because no event arrived: `RenewalFailed` is delivered only if an `on_event` callback was registered, and `status().last_result` is the other source.
 - That HTTPS works when only 443 is open: TLS-ALPN-01 is not offered yet.
-- That a Let's Encrypt run has happened: **nothing has been run against Let's Encrypt, staging or production**, only against Pebble.
+- That a Let's Encrypt run by a PERSON has happened: staging was run by an AI agent (the PM's session, over SSH, on a Debian 13 server, 2026-11-09 to 2026-11-11; `docs/FRESH-EYES-TRIAL.md` runs 4 to 4d). **Production has never been run**, and no person has followed the quickstart.
 
 ## Order I would do the gaps in (a proposal for the PM)
 

@@ -12,6 +12,14 @@ use httpant::Client;
 use webservant::{Acme, Site};
 
 const NAME: &str = "host.docker.internal";
+/// Where the validation listener binds. Docker Desktop (Windows, macOS) delivers `host.docker.internal` traffic to the host's loopback, so
+/// loopback is enough there and no inbound firewall rule (a prompt per rebuilt test binary) is ever needed. On Linux the container arrives
+/// from the docker bridge, which loopback does not serve, so CI binds all interfaces.
+const VALIDATION_BIND: &str = if cfg!(target_os = "linux") {
+    "0.0.0.0:5002"
+} else {
+    "127.0.0.1:5002"
+};
 const CONTAINER: &str = "webservant-pebble-test";
 
 struct Pebble {
@@ -108,7 +116,7 @@ async fn issue_and_serve(p: &Pebble) {
         .ca_root_pem_file(&p.minica_path)
         .store(tmp.path().join("store"));
     // The listener Pebble connects to must be on its validation port 5002; the HTTPS one is free.
-    let (https_bind, http_bind) = ("127.0.0.1:0", "0.0.0.0:5002");
+    let (https_bind, http_bind) = ("127.0.0.1:0", VALIDATION_BIND);
     let site = Site::new(NAME)
         .files(&root)
         .bind(https_bind)
@@ -189,7 +197,7 @@ fn cli_check_against_pebble(p: &Pebble) {
             .output()
             .unwrap()
     };
-    let ok = run("0.0.0.0:5002");
+    let ok = run(VALIDATION_BIND);
     let out = String::from_utf8_lossy(&ok.stdout);
     assert!(
         ok.status.success(),
@@ -231,7 +239,7 @@ async fn check_reachable_against_pebble(p: &Pebble) {
                     .ca_root_pem_file(&p.minica_path),
             )
     };
-    let ok = site("0.0.0.0:5002").check_reachable().await.unwrap();
+    let ok = site(VALIDATION_BIND).check_reachable().await.unwrap();
     assert!(
         ok.is_reachable(),
         "reachable setup reported as failing: {:?}",
