@@ -91,7 +91,7 @@ does nothing.)
 
 ## Part 2: a real site with HTTPS
 
-This part is written for a **Linux server**. It has been run once end to end through step 6 on Debian 13, **by an AI agent (not a person) against Let's Encrypt staging**; the same commands should work elsewhere, but it has not been tried on other systems.
+This part is written for a **Linux server**. It has been run through step 6 and the systemd service in step 8 on a rented Debian 13 server, **by an AI agent (not a person), against Let's Encrypt's practice service (staging)**. Nothing in it has been run against the real service, across a reboot, or on another system; the same commands should work elsewhere, but that is untried.
 
 What happens: WebServAnt asks a certificate authority (Let's Encrypt) for a certificate for your name, proves the name is yours by answering a
 question the authority sends to port 80 on your machine, and then serves your folder over HTTPS and renews the certificate by itself. For that to
@@ -104,14 +104,19 @@ two tests before the real thing (step 5, optional but quick, and step 6).
 - A **computer on the internet with its own public address** (a small rented server works; a laptop at home usually does not unless you can open ports
   on your router). You can log into it and install software.
 - An **email address you can read**, for the certificate authority to write to about expiry and problems.
-- **Rust and git on that computer.** On a fresh Ubuntu server: `sudo apt install build-essential git curl`, then install Rust with
-  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` and open a new terminal (the installer may end with some `CFLAGS` lines; they are harmless) (the compiler package is what Rust links with).
-- About 20 minutes of work, plus waiting for DNS to spread (step 2).
+- **Rust on that computer.** On a fresh Ubuntu or Debian server (the `apt` commands here are for those; on another system install the same things with its own package manager): `sudo apt install build-essential curl libcap2-bin`
+  (`build-essential` is the C compiler and linker Rust needs; `libcap2-bin` provides the `setcap` command used in step 4), then install Rust with
+  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`. The installer asks a question: **press `1`** (the default install) and Enter. Then open a new terminal (the installer may end with some `CFLAGS` lines; they are harmless).
+- About 20 minutes of your own work, plus the time DNS takes to spread (step 2) and the compile in step 4 (a few minutes).
+
+**Where each command runs.** Steps 3 to 9 run **on that server**: from your own computer, log in with `ssh user@SERVER-IP` (your hosting company gives you
+the user name and address; Windows 10 and later, macOS and Linux all have `ssh` in a terminal) and type the commands in that session. Only the DNS check in
+step 2 and the browser checks in steps 5 and 7 are done elsewhere, from your own computer or phone.
 
 ### 2. Point the name at the computer
 
-In the place where you manage your domain, add an **A record**: name `example.org` (or `@`), value = the computer's **public IPv4 address** (your hosting
-company's control panel shows it; on the computer itself `curl https://ifconfig.me` prints it). Do the same for `www` if you want `www.example.org` too, **and then add `--also-name www.example.org` to the commands in steps 6 and 7**: one
+In the place where you manage your domain's **DNS records** (this is often not where you bought the name: the registrar sells the name, and a DNS host, which may be the same company, holds the records; if your registrar's page has no "DNS" or "records" section, look at which company the name's nameservers belong to), add an **A record** (an A record says "this name is at this IPv4 address"): name `example.org` (or `@`), value = the computer's **public IPv4 address** (your hosting
+company's control panel shows it; on the computer itself `curl -4 https://ifconfig.me` prints it; the `-4` matters, without it you may get an IPv6 address, which is not what an A record takes). If there is a "TTL" box, a short one such as 300 (seconds) makes mistakes quicker to fix. Do the same for `www` if you want `www.example.org` too, **and then add `--also-name www.example.org` to every `webservant` command in steps 6, 7, 8 (in the service file) and 9**: one
 certificate covers exactly the names you list, and a name you did not list gets a certificate error.
 
 Check it from any computer (change `example.org` to your name; if `nslookup` is missing on a minimal Ubuntu server, `sudo apt install dnsutils`):
@@ -129,15 +134,18 @@ domain has an AAAA record (an IPv6 address) that does not lead to this computer,
 
 Both must be reachable from the internet.
 
-- On the computer's own firewall, if it has one (some servers, such as a stock Debian 13, have no `ufw` and accept everything: then there is nothing to do here). For example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`. **If you turn `ufw` on, allow SSH first
+- On the computer's own firewall, if it has one. Look first: `sudo ufw status` prints `inactive` or "command not found" when there is none (some servers, such as a stock Debian 13, have no `ufw` and accept everything: then there is nothing to do here). If it says `active`, for example on Ubuntu: `sudo ufw allow 80/tcp` and `sudo ufw allow 443/tcp`. **If you turn `ufw` on, allow SSH first
   (`sudo ufw allow 22/tcp`) or you lock yourself out of the server.**
 - In your hosting company's control panel, if it has a "firewall" or "security group" (many do and they block everything by default): allow inbound
   TCP 80 and 443.
-- At home: forward ports 80 and 443 on your router to the computer.
+- At home: forward ports 80 and 443 on your router to the computer. Some home internet providers block port 80 (or give you an address shared with
+  other customers); if the tests in steps 5 and 6 fail with everything else right, that is the likeliest reason, and a small rented server is the way around it.
 
 Only one program can use port 80 at a time. If a web server (nginx, Apache) already runs on this computer, stop it for now.
 
 ### 4. Install, give it permission for ports 80 and 443, make a page
+
+Run these in your home folder on the server (the `public` folder is made there, and step 8 copies it from there).
 
 ```sh
 cargo install webservant
@@ -150,7 +158,7 @@ echo "<h1>My real site</h1>" > public/index.html
 
 The `cp` puts the program somewhere `sudo` can see it; the `setcap` line lets it use ports below 1024 without the program itself running as root (that is the point; only the two `sudo` lines run as root);
 `cargo uninstall` removes the first copy so that `webservant` from now on is the one with the permission. (After you upgrade WebServAnt later, repeat
-the `cargo install`, `cp` and `setcap` lines: a new copy has lost the permission.)
+the `cargo install`, `cp` and `setcap` lines: a new copy has lost the permission. If it runs as the service from step 8, then run `sudo systemctl restart webservant` so the new program is the one running.)
 
 ### 5. First quick test: can the internet reach port 80?
 
@@ -160,7 +168,7 @@ This is optional but takes one minute and catches the most common mistake before
 webservant serve --files ./public --bind 0.0.0.0:80
 ```
 
-You should see a line like the one in Part 1, `serving http://0.0.0.0:80/  (Ctrl-C to stop)`. Now, **from a different network**, for example your phone on mobile data (not your home wifi), open `http://example.org/` (your name). You should see
+You should see a line like the one in Part 1, `serving http://0.0.0.0:80/  (Ctrl-C to stop)`. Now, **from a different network**, for example your phone on mobile data (not your home wifi), open `http://example.org/` (your name; **type the `http://` yourself**, because many phone browsers quietly change it to `https://`, which cannot work yet, or use a private tab). You should see
 "My real site". If you do, your DNS and port 80 are right; press Ctrl-C and go on. If you do not, fix steps 2 and 3 first; the real test (step 6) would
 fail for the same reason. **Either way, press Ctrl-C to stop this server before step 6**: the test needs port 80 free.
 
@@ -170,7 +178,7 @@ fail for the same reason. **Either way, press Ctrl-C to stop this server before 
 webservant check --name example.org --acme you@example.org --files ./public
 ```
 
-This does **one real test issuance against Let's Encrypt's practice service (staging)**: it always uses staging, never the real service. It uses a
+A **certificate authority** (the "authority" in the messages below; here, Let's Encrypt) is the organisation that vouches that a name is yours, by issuing the certificate behind the padlock; "ACME" is the standard way programs ask it. This command does **one real test issuance against Let's Encrypt's practice service (staging)**: it always uses staging, never the real service. It uses a
 throwaway store, keeps nothing, changes nothing on your computer when it finishes, and cannot use up your real limits. It takes from a few seconds to
 a minute. For that time it starts the server on ports 80 and 443, which is why they must be free.
 
@@ -187,6 +195,7 @@ If you see that, your name, your ports and your firewall are all right. Go to st
 | You see (the start of the message) | It means | Do this |
 |---|---|---|
 | `NOT REACHABLE (...): ... could not validate the name ... port 80` | the authority could not reach your computer on port 80, or reached something else | repeat steps 2, 3 and 5: does `nslookup` show this computer's public address? is port 80 open in **every** firewall (computer, hosting panel, router)? is another web server using port 80? |
+| `NOT REACHABLE ...` and the message mentions a DNS lookup, the name not existing, or an address that is not this computer's | DNS has not spread yet, or points elsewhere (the authority also checks the AAAA record from step 2, and a CAA record, if your domain has one, can name another authority) | wait and re-run `nslookup` (step 2) until it shows this computer's address, remove any AAAA record, look for a CAA record at your DNS host that does not allow `letsencrypt.org`, then test again (this page has not seen the exact wording, so the message wins over this row) |
 | `webservant: the server could not start or stopped: ... address already in use` | another program already uses port 80 or 443 | find and stop it (`sudo ss -ltnp` lists who listens where), then run the test again |
 | `webservant: the server could not start or stopped: ... Permission denied` | no permission for ports below 1024 | run the `setcap` line in step 4 on the copy you are running, and try again |
 | `NOT REACHABLE ...: the certificate authority refused or failed at ...` and the rest mentions a limit (`rate`, `too many`) | the practice service is limiting you (the exact wording is the authority's, and this page has not seen it) | wait an hour and try again; do not run the test in a loop |
@@ -210,6 +219,7 @@ webservant serve --files ./public --name example.org --acme you@example.org
 ```
 
 This one uses the real Let's Encrypt service, which is why you tested first. The first start takes up to a minute while it gets the certificate. It listens on port 80 too, to send `http://` visitors to `https://`.
+**It runs in your SSH session, so closing that session (or losing the connection) stops it**: that is fine for trying it out; step 8 is how to keep it running.
 **Success looks like this line**, and the program keeps running (`0.0.0.0` just means "every address of this computer"; you open your own name, below):
 
 ```
@@ -217,6 +227,9 @@ serving https://0.0.0.0:443/  (Ctrl-C to stop)
 ```
 
 (With `www`: add `--also-name www.example.org` after `--name example.org`, exactly as in the test.)
+
+This step gets one real certificate and keeps it in the folder named in step 8. The service in step 8 keeps its own folder, so it gets a **second** real
+certificate; Let's Encrypt allows only a few per name per week, which is plenty for this page but not for doing it in a loop.
 
 Open `https://example.org` in a browser. You should see "My real site" and a padlock. Visiting `http://example.org` sends you to the `https://`
 address.
@@ -240,6 +253,7 @@ address.
 
   [Service]
   ExecStart=/usr/local/bin/webservant serve --files /srv/site --name example.org --acme you@example.org --acme-store /var/lib/webservant
+  # With www (step 2): add  --also-name www.example.org  to the line above, or www gets a certificate error.
   DynamicUser=yes
   StateDirectory=webservant
   AmbientCapabilities=CAP_NET_BIND_SERVICE
@@ -256,7 +270,11 @@ address.
   sudo cp -r public/. /srv/site/
   sudo systemctl daemon-reload
   sudo systemctl enable --now webservant
+  sudo systemctl status webservant
   ```
+
+  `status` should say `active (running)` (press `q` to leave it). To change the site later, copy new files into `/srv/site`; no restart is needed for files. After changing the
+  service file, run `sudo systemctl daemon-reload && sudo systemctl restart webservant`.
 
   Read the service's log with `sudo journalctl -u webservant`; without `sudo` a user outside the `adm` or `systemd-journal` group sees "No entries".
 
@@ -267,11 +285,15 @@ address.
 ### 9. Put your own app behind it
 
 If you have an app listening on this computer, say on port 3000, send the paths it should answer to it. (If you run WebServAnt as a service, step 8,
-put these flags on the `ExecStart=` line instead, then `sudo systemctl daemon-reload && sudo systemctl restart webservant`.)
+put these flags on the `ExecStart=` line instead, then `sudo systemctl daemon-reload && sudo systemctl restart webservant`; with `www`, keep its `--also-name` there too.)
+Your app should listen on `127.0.0.1` only (not `0.0.0.0`), so that the only way in from the internet is through WebServAnt.
 
 ```sh
 webservant serve --files ./public --name example.org --acme you@example.org --proxy /api=http://127.0.0.1:3000
 ```
+
+The path prefix is **removed** before your app sees the request: `https://example.org/api/users/7?x=1` reaches your app as `GET /users/7?x=1` (the query and
+the body arrive unchanged; this is covered by the test `forwards_path_with_prefix_removed_query_method_and_body`).
 
 Or give it everything the folder does not have (files that exist are served first):
 
@@ -285,5 +307,6 @@ webservant serve --files ./public --name example.org --acme you@example.org --pr
 
 Wildcard certificates, getting certificates on demand for names you did not list, forwarding WebSocket connections, directory listings, logging in
 visitors, compression. The list and the reasons are in the [README](https://github.com/ThinkersJournal/webservant/blob/main/README.md) and
-[ROADMAP](https://github.com/ThinkersJournal/webservant/blob/main/ROADMAP.md). Nothing has been run against Let's Encrypt's practice service from this
-project's own machines yet: step 6 is exactly that run, which is why it comes first.
+[ROADMAP](https://github.com/ThinkersJournal/webservant/blob/main/ROADMAP.md). Step 6 is a run against Let's Encrypt's practice service, which is why it
+comes first. An AI agent has run steps 1 to 8 that way on a rented server (not from this project's own machines); no person has yet followed this page, and
+nothing has been run against the real service, across a reboot, or on a system other than Debian 13.
