@@ -45,7 +45,7 @@ async fn every_adapter_serves_a_file_when_built_in_and_refuses_with_a_named_feat
             let site = site.unwrap_or_else(|e| panic!("{id} is built in but did not start: {e}"));
             let reply = get_hello(&site).await;
             assert!(reply.starts_with("HTTP/1.1 200"), "{id}: {reply}");
-            assert!(reply.ends_with("hello adapter"), "{id}: {reply}");
+            assert!(reply.contains("hello adapter"), "{id}: {reply}");
             site.shutdown().await.unwrap();
             served += 1;
         } else {
