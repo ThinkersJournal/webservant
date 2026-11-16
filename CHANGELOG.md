@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- CI only: the shared portfolio workflow pin moves to coderipper `c72a6e03479d914de8ea8a73609ba73e93a0de92` (CodeRipper 0.47.5, PM task pin-move-0.47.5). This repo has no `.coderipper.toml` and no rule names in its files; the rule-id migration tool reports nothing to migrate. No code change. Version not set: the PM allocates it at the gate.
+
 ## [0.4.8] - 2026-11-11
 
 - Docs only: the systemd unit (QUICKSTART step 8) run on a Debian VPS against Let's Encrypt staging (trial run 4d: start, restart with the stored certificate reused, SIGKILL then auto-restart, clean stop). QUICKSTART now says it was run (not across a reboot) and to read the log with `sudo journalctl`. No code change. Version proposed; the PM allocates it at the gate.
