@@ -5,7 +5,7 @@ computer compiling). **Part 2** puts a real site on the internet with a proper `
 before it matters.
 
 You need Rust installed ([rustup.rs](https://rustup.rs)). You do not need to write Rust to use the command-line program, but Part 1 shows the Rust
-version too because the program itself is three lines (the other commands only create the project).
+version too: the program is a three-line `main.rs`, though creating the project around it takes a few setup commands first.
 
 The first install takes a couple of minutes while Rust compiles it. You will see a lot of "Compiling" lines; that is normal.
 
@@ -50,7 +50,7 @@ folder `public` and the file `index.html` in it with any text editor instead; th
 
 It listens on this computer only (`127.0.0.1`), so nobody else can reach it. That is on purpose.
 
-### The Rust way (a three-line program)
+### The Rust way (a few setup commands, then a three-line `main.rs`)
 
 ```sh
 cargo new mysite
