@@ -54,4 +54,6 @@ Repo nwo is ThinkersJournal/webservant (not ciresnave/). Tag/publish of 0.4.8/0.
 
 IN FLIGHT 2026-11-16: PR for 0.4.10 (branch lane/webservant): tests/adapters.rs + CI `adapters` job (PM task close-unverified-gaps a), signal.rs read in Linux CI at e9606a2 = ok (b), README errors line softened (c), acme_pebble loopback bind on non-Linux (PM task acme-pebble-loopback). Could NOT show the Block rules in place (Get-NetFirewallRule saw 0 acme_pebble rules from this shell): say so. After merge: [STATUS] to pm-ants, [READY]/[MERGED] to pm, remove worktree + branch.
 
+EXPECT: pm-ants notice: capant (cold reader) will send a [FINDING] table on docs/QUICKSTART.md after its Part 1 walk. Fix the page in the daily PR (#21 today); do not argue a finding away without a test of the step; do not contact capant. Also #21 now carries letsencrypt-run-facts docs (AI agent ran staging).
+
 WAIT: PR merge/CI for the 0.4.10 PR, or PM publish of 0.4.8/0.4.9, or CireSnave staging failures relayed by the PM | check: git fetch -q && git log --oneline origin/main -3; gh pr list -R ThinkersJournal/webservant --head lane/webservant | wake: 2026-11-16T19:00:00Z
