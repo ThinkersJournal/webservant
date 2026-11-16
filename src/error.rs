@@ -44,7 +44,7 @@ impl fmt::Display for Error {
                 path.display()
             ),
             Self::NothingToServe => f.write_str(
-                "there is nothing to serve. Call `.files(\"./public\")` (or pass `--files ./public`) with the directory to serve.",
+                "there is nothing to serve. Pass `--files ./public` (in Rust code, call `.files(\"./public\")`) with the directory to serve.",
             ),
             Self::Certificate {
                 path: Some(p),
@@ -79,7 +79,7 @@ impl fmt::Display for Error {
             ),
             Self::Server(e) => write!(
                 f,
-                "the server could not start or stopped: {e}. If the address is in use, choose another with `.bind(\"127.0.0.1:8081\")` (on the command line, `--bind 127.0.0.1:8081`)."
+                "the server could not start or stopped: {e}. If the address is in use, choose another with `--bind 127.0.0.1:8081` (in Rust code, `.bind(\"127.0.0.1:8081\")`)."
             ),
         }
     }

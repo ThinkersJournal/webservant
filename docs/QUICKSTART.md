@@ -5,7 +5,7 @@ computer compiling). **Part 2** puts a real site on the internet with a proper `
 before it matters.
 
 You need Rust installed ([rustup.rs](https://rustup.rs)). You do not need to write Rust to use the command-line program, but Part 1 shows the Rust
-version too because it is three lines.
+version too because the program itself is three lines (the other commands only create the project).
 
 The first install takes a couple of minutes while Rust compiles it. You will see a lot of "Compiling" lines; that is normal.
 
@@ -21,7 +21,7 @@ The first install takes a couple of minutes while Rust compiles it. You will see
    cargo install webservant
    ```
 
-   A line starting with `Installing` near the end of cargo's output says where the program went (normally the `bin` folder inside your cargo home, `~/.cargo/bin`, which `rustup` puts on your
+   A line starting with `Installing` near the end of cargo's output says where the program went (normally the `bin` folder inside your cargo home (the folder cargo keeps its installed programs and downloads in: `~/.cargo`, or `%USERPROFILE%\.cargo` on Windows), `~/.cargo/bin`, which `rustup` puts on your
    PATH). If your terminal then says `webservant` is not found, close it and open a new one.
 
 2. Make a folder with one page in it:
@@ -50,7 +50,7 @@ folder `public` and the file `index.html` in it with any text editor instead; th
 
 It listens on this computer only (`127.0.0.1`), so nobody else can reach it. That is on purpose.
 
-### The Rust way (three lines)
+### The Rust way (a three-line program)
 
 ```sh
 cargo new mysite
@@ -81,7 +81,7 @@ does nothing.)
 |---|---|---|
 | `webservant: cannot serve files from ...` | the folder in `--files` does not exist | make the folder first, and run the command from the folder that contains it |
 | `webservant: there is nothing to serve ...` | you left out `--files` | add `--files ./public` |
-| `the server could not start or stopped: ... address already in use` (on Windows: `Only one usage of each socket address ... (os error 10048)`) | something else already uses port 8080 | pick another port: `--bind 127.0.0.1:8081`, then open that port instead |
+| `the server could not start or stopped: ... address already in use` (on Windows: `Only one usage of each socket address ... (os error 10048)`) | something else already uses port 8080 (the words in `...` may start with `i/o error:`; that is the operating system's own wording, not a separate problem) | pick another port: `--bind 127.0.0.1:8081`, then open that port instead |
 | `bind ... is not an address` | `--bind` needs the host, a colon and the port | write it like `127.0.0.1:8081` (not just `8081`), with a port from 0 to 65535 |
 | the page loads at `localhost:8082` but not at `127.0.0.1:8082` | `--bind localhost:8082` may listen on the IPv6 address only (the `serving` line shows `[::1]`) | use `--bind 127.0.0.1:8082`, or open the address the `serving` line shows |
 | `unknown option ...` | a typo in a flag | the message names the flag and usually says what you meant; `webservant --help` lists every option |
