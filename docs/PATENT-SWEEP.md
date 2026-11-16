@@ -1,8 +1,12 @@
-# Patent sweep: WebServAnt (webservant, line 0.2.x) @ main `ddc8ad3` (0.2.1)
+# Patent sweep: WebServAnt (webservant, line 0.2.x; the 0.4.x line is named, not swept, below) @ main `ddc8ad3` (0.2.1)
 
 Date: 2026-11-08; Run by: WebServAnt lane, Claude Sonnet 5.5; Method: AI-assisted search and read (web search limited to patents.google.com, then claims read with `C:\Projects\tools\patent-claims.py`); **NOT legal advice; NOT a freedom-to-operate opinion.**
 
 Covers the code on `main` at `ddc8ad3` (0.2.1: static files, TLS from a certificate pair, ACME HTTP-01 certificates, reverse proxy). Later commits since are docs only. It does **not** cover HTTPAnt's own mechanisms (swept in HTTPAnt's `docs/PATENT-SWEEP.md`: interchangeable adapters, request limits, the `CertSource` per-handshake certificate lookup, trusted-proxy address) except where WebServAnt adds to them. A new family of capability (TLS-ALPN-01, DNS-01, WebSocket forwarding, a SecretAnt-backed store) needs a re-sweep (PATENT-SWEEP-PROCESS.md).
+
+## Line 0.4.x (Cargo.toml 0.4.9): named, none searched, unread
+
+The sweep above was run on 0.2.1. The crate is now on the 0.4.x line (0.4.9, 2026-11-16). **No search was run and no claim was read for anything added after `ddc8ad3`.** Per `CHANGELOG.md`, 0.2.2 to 0.4.9 added: `Settings` and the ConfigurAnt schema, `Site::check_reachable` and `webservant check`, a private ACME store (Unix 0700, Windows `icacls`), per-route proxy timeouts and a site-wide body limit, a proxy at `/` that serves files first, new command-line options (`--acme-directory`, `--acme-ca-root`, `--max-body`, `--renew-check-every`), and a bump of the HTTPAnt dependency to `~0.7.1`; 0.3.0 removed TLS-ALPN-01. Whether any of these is a new idea for this sweep has not been judged. This line therefore carries the same Limitations below, plus: coverage of 0.2.2 to 0.4.9 is none. A re-sweep (PATENT-SWEEP-PROCESS.md) is owed before any of these is described as swept.
 
 ## Ideas swept
 
