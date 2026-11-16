@@ -2,7 +2,7 @@
 
 **Serve a folder of files as a website, on the Rust web library you choose.**
 
-> **Pre-release (0.x).** The first published version is 0.4.4. Until 1.0 a breaking change bumps the second number (0.4 to 0.5), so pin it (`webservant = "0.4"`) and read the [changelog](https://github.com/ThinkersJournal/webservant/blob/main/CHANGELOG.md) before upgrading. What has not been run yet is listed in [docs/FRESH-EYES-TRIAL.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/FRESH-EYES-TRIAL.md).
+> **Pre-release (0.x).** The first published version is 0.4.4. Until 1.0 a breaking change bumps the second number (0.4 to 0.5), so pin it (`webservant = "0.4"`) and read the [changelog](https://github.com/ThinkersJournal/webservant/blob/main/CHANGELOG.md) before upgrading. Every Let's Encrypt staging run so far was done by an AI agent, not a person, and production has never been run. What has not been run yet is listed in [docs/FRESH-EYES-TRIAL.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/FRESH-EYES-TRIAL.md).
 
 ```rust
 #[tokio::main]

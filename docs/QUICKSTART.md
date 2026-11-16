@@ -91,7 +91,7 @@ does nothing.)
 
 ## Part 2: a real site with HTTPS
 
-This part is written for a **Linux server**. It has been run once end to end through step 6 on Debian 13; the same commands should work elsewhere, but it has not been tried on other systems.
+This part is written for a **Linux server**. It has been run once end to end through step 6 on Debian 13, **by an AI agent (not a person) against Let's Encrypt staging**; the same commands should work elsewhere, but it has not been tried on other systems.
 
 What happens: WebServAnt asks a certificate authority (Let's Encrypt) for a certificate for your name, proves the name is yours by answering a
 question the authority sends to port 80 on your machine, and then serves your folder over HTTPS and renews the certificate by itself. For that to
@@ -228,7 +228,7 @@ address.
 - **Where things are kept.** The account and certificates (they contain private keys) are in a folder only your user can read: on Linux
   `~/.local/share/webservant`. Choose another place with `--acme-store /some/folder`.
 - **Stopping.** Ctrl-C, or `SIGTERM` (what `systemctl stop` sends), stops it cleanly.
-- **Starting on boot (systemd).** Run once on a Debian VPS against Let's Encrypt staging (start, restart, kill and restart, stop all worked; **not tested across a reboot**), so read it
+- **Starting on boot (systemd).** Run once, by an AI agent, on a Debian VPS against Let's Encrypt staging (start, restart, kill and restart, stop all worked; **not tested across a reboot**), so read it
   before using it. Save as
   `/etc/systemd/system/webservant.service`:
 
