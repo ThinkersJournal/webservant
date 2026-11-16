@@ -65,7 +65,7 @@ standard names of the mechanisms; skip them until you need them.
   [ConfigurAnt](https://crates.io/crates/configurant) fill it (layering, required keys and ranges are checked there; tested with ConfigurAnt 0.6.3).
 - **The web library is a setting.** Hyper by default; after `cargo add webservant --features axum` (or actix-web, poem, salvo, warp),
   `.adapter("axum")` picks another and nothing else changes. Without the feature, the error says to turn it on.
-- **Errors say what to do next.** Every message ends with the fix.
+- **Errors name the problem.** Messages say what went wrong and, where we know the fix (turn on a feature, free port 80, correct a key), what to do about it. Not every message has a fix to give.
 
 ## What it does not do yet
 
