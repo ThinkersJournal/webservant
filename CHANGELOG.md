@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.9] - 2026-11-16
 
-- CI only: the shared portfolio workflow pin moves to coderipper `c72a6e03479d914de8ea8a73609ba73e93a0de92` (CodeRipper 0.47.5, PM task pin-move-0.47.5). This repo has no `.coderipper.toml` and no rule names in its files; the rule-id migration tool reports nothing to migrate. No code change. Version not set: the PM allocates it at the gate.
+- CI only: the shared portfolio workflow pin moves to coderipper `c72a6e03479d914de8ea8a73609ba73e93a0de92` (CodeRipper 0.47.5, PM task pin-move-0.47.5). This repo has no `.coderipper.toml` and no rule names in its files; the rule-id migration tool reports nothing to migrate. No code change. Version 0.4.9 allocated by the PM (task webservant#20-version); `docs/PATENT-SWEEP.md` now names the 0.4.x line and records that nothing after 0.2.1 was searched (WSP-013).
 
 ## [0.4.8] - 2026-11-11
 
