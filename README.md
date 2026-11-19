@@ -34,7 +34,7 @@ The list below is the detail; you do not need any of it to get started (the quic
 standard names of the mechanisms; skip them until you need them.
 
 - **Static files.** `Content-Type`, `ETag` and `304`, `Range`, `HEAD`, `index.html` for a directory (and a redirect from `/docs` to `/docs/`).
-  A path that leaves the folder never reaches a file: a `404`, the same as a missing file, for a drive or stream name or a symlink out of the folder, and a `400` for the spellings the router refuses before our code runs (checked on 0.4.13: `..`, `%2e%2e%2f`, `%5c`, a backslash). Either way no file outside is returned. Names starting with a dot (`.git`, `.env`) are not served unless you ask
+  A path that leaves the folder never reaches a file: a `404`, the same as a missing file, for a drive or stream name or a symlink out of the folder, and a `400` for the spellings HTTPAnt's router refuses before our code runs (deliberate, not a bug) (checked on 0.4.13: `..`, `%2e%2e%2f`, `%5c`, a backslash). Either way no file outside is returned. Names starting with a dot (`.git`, `.env`) are not served unless you ask
   with `.dotfiles(true)` / `--dotfiles`. Windows device names (`CON`, `NUL`, `COM1`) are refused on every system.
 - **HTTPS from a certificate you already have.** `.tls_pem_files("cert.pem", "key.pem")` or `--cert cert.pem --key key.pem`, served by HTTPAnt's
   rustls acceptor (TLS 1.2 and 1.3). A certificate and key that do not belong together are refused at start, and the error never shows the key.
@@ -73,4 +73,4 @@ The plan and the reasons are in [ROADMAP.md](https://github.com/ThinkersJournal/
 
 ## Status
 
-Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
+Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Not exercised against the published 0.4.13 (tests only, or never run): the ACME path, `webservant check`, SIGTERM, the non-default adapters, `Settings`, the systemd unit, and a file symlink out of the folder on Windows. Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
