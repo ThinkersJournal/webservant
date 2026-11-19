@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Docs only (README claim-to-command audit against the registry 0.4.13, Windows, run not read): the README said a path leaving the folder is a `404`; on 0.4.13 the spellings `..`, `%2e%2e%2f`, `%5c` and a backslash answer `400` (the router refuses them before our code; `tests/files.rs` accepts either and checks no file leaks), `C:`, `::$DATA`, dotfiles and device names answer `404`. README now says so. Version number said 0.4.12; now 0.4.13 (README, CONSUMER-CONTRACT). Everything else checked held: Content-Type, ETag/304, Range 206, HEAD, `/docs` 308 to `/docs/`, `--dotfiles`, mismatched cert/key refused without key text, TLS 1.2 and 1.3 served (1.1 refused), proxy prefix strip, `X-Forwarded-*`/`Forwarded` replaced, `Connection`-named header dropped, 502 body without upstream address, WebSocket 501, PROPFIND 405, 413 over the body limit and with `--max-body`, `/` proxy with files first. Not run: ACME, `check`, SIGTERM, adapters, Settings, systemd, symlink escape.
+
 ## [0.4.13] - 2026-11-16
 
 - Docs only, no code change (PM notice webservant-published: 0.4.12 is on crates.io, tag v0.4.12). README, ROADMAP and CONSUMER-CONTRACT now say "on crates.io at 0.4.12" where they said first published 0.4.4 or unpublished. QUICKSTART Part 1 checked from the registry, not a checkout: `cargo install webservant --version 0.4.12` (Windows, fresh target dir, 1m19s, `Installed package webservant v0.4.12`), `webservant --version` printed `webservant 0.4.12`, `webservant serve --files ./public` printed `serving http://127.0.0.1:8080/  (Ctrl-C to stop)`, and `curl` of that address returned `200 OK` with `<h1>Hello</h1>`. Part 2 was not re-run (needs a server and a domain). Version proposed; the PM allocates it at the gate.
