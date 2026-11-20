@@ -1,6 +1,6 @@
 # What WebHostAnt's local serving gets from WebServAnt (consumer contract)
 
-**Published: webservant is on crates.io at 0.4.12 (2026-11-16, tag v0.4.12).** Depend on it by version, `webservant = "0.4.12"`; the rows below say what each version built.
+**Published: webservant is on crates.io at 0.4.13 (2026-11-19, tag v0.4.13).** Depend on it by version, `webservant = "0.4.13"`; the rows below say what each version built.
 
 Written 2026-11-08 by the WebServAnt lane at `origin/main` of this repository after #3 and with #4 (reverse proxy, 0.2.1) merged. Rows C5, C6 and C11 were updated for 0.3.0. Derived from
 WebHostAnt's own `docs/CONSUMER-CONTRACT.md`, `docs/TLS-NEED-LIST.md`, `docs/EDGE-AND-AGNOSTICISM.md` and `docs/DESIGN.md` (read at WebHostAnt

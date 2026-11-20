@@ -2,7 +2,7 @@
 
 **Serve a folder of files as a website, on the Rust web library you choose.**
 
-> **Pre-release (0.x).** On crates.io at 0.4.12 (the first published version was 0.4.4). Until 1.0 a breaking change bumps the second number (0.4 to 0.5), so pin it (`webservant = "0.4"`) and read the [changelog](https://github.com/ThinkersJournal/webservant/blob/main/CHANGELOG.md) before upgrading. Every Let's Encrypt staging run so far was done by an AI agent, not a person, and production has never been run. What has not been run yet is listed in [docs/FRESH-EYES-TRIAL.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/FRESH-EYES-TRIAL.md).
+> **Pre-release (0.x).** On crates.io at 0.4.13 (the first published version was 0.4.4). Until 1.0 a breaking change bumps the second number (0.4 to 0.5), so pin it (`webservant = "0.4"`) and read the [changelog](https://github.com/ThinkersJournal/webservant/blob/main/CHANGELOG.md) before upgrading. Every Let's Encrypt staging run so far was done by an AI agent, not a person, and production has never been run. What has not been run yet is listed in [docs/FRESH-EYES-TRIAL.md](https://github.com/ThinkersJournal/webservant/blob/main/docs/FRESH-EYES-TRIAL.md).
 
 ```rust
 #[tokio::main]
@@ -34,8 +34,7 @@ The list below is the detail; you do not need any of it to get started (the quic
 standard names of the mechanisms; skip them until you need them.
 
 - **Static files.** `Content-Type`, `ETag` and `304`, `Range`, `HEAD`, `index.html` for a directory (and a redirect from `/docs` to `/docs/`).
-  A path that leaves the folder is a `404`, the same as a missing file, whether it is spelled `..`, `%2e%2e%2f`, with a backslash, as a drive or
-  stream name (`C:`, `file::$DATA`), or as a symlink out of the folder. Names starting with a dot (`.git`, `.env`) are not served unless you ask
+  A path that leaves the folder never reaches a file: a `404`, the same as a missing file, for a drive or stream name or a symlink out of the folder, and a `400` for the spellings HTTPAnt's router refuses before our code runs (deliberate, not a bug) (checked on 0.4.13: `..`, `%2e%2e%2f`, `%5c`, a backslash). Either way no file outside is returned. Names starting with a dot (`.git`, `.env`) are not served unless you ask
   with `.dotfiles(true)` / `--dotfiles`. Windows device names (`CON`, `NUL`, `COM1`) are refused on every system.
 - **HTTPS from a certificate you already have.** `.tls_pem_files("cert.pem", "key.pem")` or `--cert cert.pem --key key.pem`, served by HTTPAnt's
   rustls acceptor (TLS 1.2 and 1.3). A certificate and key that do not belong together are refused at start, and the error never shows the key.
@@ -74,4 +73,4 @@ The plan and the reasons are in [ROADMAP.md](https://github.com/ThinkersJournal/
 
 ## Status
 
-Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
+Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Not exercised against the published 0.4.13 (tests only, or never run): the ACME path, `webservant check`, SIGTERM, the non-default adapters, `Settings`, the systemd unit, and a file symlink out of the folder on Windows. Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
