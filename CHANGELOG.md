@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.14] - 2026-11-20
 
 - Docs only (README claim-to-command audit against the registry 0.4.13, Windows, run not read): the README said a path leaving the folder is a `404`; on 0.4.13 the spellings `..`, `%2e%2e%2f`, `%5c` and a backslash answer `400` (the router refuses them before our code; `tests/files.rs` accepts either and checks no file leaks), `C:`, `::$DATA`, dotfiles and device names answer `404`. README now says so. Version number said 0.4.12; now 0.4.13 (README, CONSUMER-CONTRACT). Everything else checked held: Content-Type, ETag/304, Range 206, HEAD, `/docs` 308 to `/docs/`, `--dotfiles`, mismatched cert/key refused without key text, TLS 1.2 and 1.3 served (1.1 refused), proxy prefix strip, `X-Forwarded-*`/`Forwarded` replaced, `Connection`-named header dropped, 502 body without upstream address, WebSocket 501, PROPFIND 405, 413 over the body limit and with `--max-body`, `/` proxy with files first. Symlink escape, run after the first audit: a directory junction out of the folder answers `404` (control: a junction inside the folder is served); a file symlink could not be made here (needs Administrator), so that case was not run on this box (the test skips the same way here and runs in Linux CI). The `400` is HTTPAnt's router refusing dot segments, left as is on purpose; the README now describes what the code does. Not exercised: ACME, `check`, SIGTERM, adapters, Settings, systemd, file-symlink escape on Windows.
 
