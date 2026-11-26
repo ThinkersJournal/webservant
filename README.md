@@ -73,4 +73,4 @@ The plan and the reasons are in [ROADMAP.md](https://github.com/ThinkersJournal/
 
 ## Status
 
-Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Not exercised against the published 0.4.13 (tests only, or never run): the ACME path, `webservant check`, SIGTERM, the non-default adapters, `Settings`, the systemd unit, and a file symlink out of the folder on Windows. Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
+Pre-1.0: a breaking change bumps the second number (0.2 to 0.3). Not exercised against the published 0.4.13 (tests only, or never run): ACME against a real CA (the registry binary was run against Pebble only, on 2026-11-20), SIGTERM, the non-default adapters, `Settings`, the systemd unit, and a file symlink out of the folder on Windows. Built on [HTTPAnt](https://crates.io/crates/httpant). Licence: MIT or Apache-2.0.
