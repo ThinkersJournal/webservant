@@ -2685,7 +2685,7 @@ dependencies = [
 
 [[package]]
 name = "webservant"
-version = "0.4.14"
+version = "0.4.15"
 dependencies = [
  "bytes",
  "configurant",

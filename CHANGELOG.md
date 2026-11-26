@@ -1,7 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.15] - 2026-11-26
 
+- CI: portfolio workflow pinned to coderipper 467fd259 (0.48.1); `Cargo.lock` takes `url` 2.5.9 (RUSTSEC-2026-0592; `Url::origin()` is not reachable here, 0 hits in `*.rs`). No code change.
 - Docs only (README audit, ACME and `check` rows, registry 0.4.13 binary against Pebble in Docker, Windows host, run not read): `webservant check` printed the documented `OK: ... Nothing was kept.` with the validation port reachable and the documented `NOT REACHABLE ... could not validate ... port 80 is reachable` with it closed (exit 1); without `--acme` it says what to add. `serve --acme` issued, served HTTPS 200 with a Pebble-issued certificate, kept `accounts/` and `certs/` (key, chain, names) under `--acme-store`, ACL on the store was the owner alone (`icacls`), a restart reused the stored certificate (Pebble logged 2 issuances in total: the check and the first serve), the HTTP side redirected a configured name with `308` to HTTPS (path and query kept) and answered `421` for another Host. Not run: a real CA (staging or production), renewal on a running server, SIGTERM (no signal sender on this Windows box), adapters, Settings, systemd.
 
 ## [0.4.14] - 2026-11-20
