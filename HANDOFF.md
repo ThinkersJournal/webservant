@@ -3,11 +3,12 @@
 Current state only; history is in git. Rewritten 2026-11-26 by the lane. Worktree C:\Projects\webservant-wt-lane. Repo ThinkersJournal/webservant. Primary checkout stays on main. Publishing is the PM's.
 
 ## State
-Roadmap built and merged (#1 to #26). Branch `lane/webservant-sigterm-audit` (from origin/main d24cdf73) has 3 commits, pushed, NO PR yet: README SIGTERM (Linux/container), HANDOFF, adapters + Settings audit (registry 0.4.13 crate, all 6 adapters OK; CHANGELOG [Unreleased]). Open ONE PR on the next UTC day after 2026-11-26; [READY] to pm-assist cc pm-ants. Version is the gate's.
+Roadmap built and merged (#1 to #26). PR #27 (branch `lane/webservant-sigterm-audit`, docs only) is open and in the gate; READY sent to pm-assist cc pm-ants 2026-11-27. Version is the gate's. When #27 merges: delete branch, `git worktree remove`, start a fresh branch.
 
-## Blocked
-- File-symlink escape on Windows: creating a symlink needs Administrator here (NewItemSymbolicLinkElevationRequired); runs in Linux CI. Only unblockable by an elevated session or Developer Mode (CireSnave).
-- systemd unit, real-CA ACME, production: never run, no host.
+## WAITs (each audit row blocked; arm on restart)
+- WAIT webservant#27 merge: check `gh pr view 27 --json state`; then cleanup above.
+- WAIT elevated-session-or-Developer-Mode (CireSnave): Windows file-symlink escape test needs Administrator (NewItemSymbolicLinkElevationRequired); runs in Linux CI meanwhile.
+- WAIT host (CireSnave): systemd unit, real-CA ACME, production, phone on mobile data: never run, no host.
 
 ## Honest gaps (claim no more)
 - No person has followed QUICKSTART Part 2 (board 455). Never run: production, failed renewal on a real CA, systemd reboot, phone on mobile data.
