@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.16] - 2026-11-27
 
 - Docs only (README audit, adapter and `Settings` rows, run not read): a scratch crate depending on webservant `=0.4.13` from crates.io with all five adapter features, building each site from a `Settings` JSON value and `Site::from_settings(..).start()`, served a file (`200`, body matched) and a missing file (`404`) on hyper, axum, actix-web, poem, salvo and warp, Windows host; a misspelled `Settings` key is refused naming the key and the allowed ones; a site with no `files` and no proxy fails at `start()` with `there is nothing to serve`. README drops adapters and `Settings` from the not-exercised list and says SIGTERM was run on Linux in a container only (registry binary, Docker, 2026-11-26). Not exercised: ACME against a real CA, SIGTERM under systemd or on Windows, the systemd unit, file-symlink escape on Windows (creating one needs Administrator; blocked on this box, runs in Linux CI).
 
